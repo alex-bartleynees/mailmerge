@@ -46,6 +46,9 @@ public sealed class SendingAccount : IWorkspaceOwned
     public DateTimeOffset? NextSendAt { get; set; }
 
     public DateTimeOffset Created { get; set; }
+
+    /// <summary>Microsoft and Test accounts can save drafts; SMTP only when IMAP is configured.</summary>
+    public bool SupportsDrafts => Kind != AccountKind.Smtp || Smtp?.HasImap == true;
 }
 
 public sealed record SmtpSettings

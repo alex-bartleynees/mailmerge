@@ -37,7 +37,8 @@ public static partial class MergeTemplate
         return BlankLines().Replace(s, "\n\n").Trim();
     }
 
-    private static string Lookup(IReadOnlyDictionary<string, string> data, string key)
+    /// <summary>The value a field would merge to before any fallback: exact name first, then case-insensitive.</summary>
+    public static string Lookup(IReadOnlyDictionary<string, string> data, string key)
     {
         if (data.TryGetValue(key, out var exact))
         {

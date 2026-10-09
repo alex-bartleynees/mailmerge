@@ -6,6 +6,7 @@ internal static class FeatureServices
     public static IServiceCollection AddMailMergeFeatures(this IServiceCollection services)
     {
         services.AddScoped<Features.OptOuts.OptOutRegistry>();
+        services.AddScoped<Features.Campaigns.Delivery.DeliveryPlanner>();
 
         return services;
     }

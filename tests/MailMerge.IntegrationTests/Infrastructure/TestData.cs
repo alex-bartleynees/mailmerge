@@ -82,3 +82,18 @@ public sealed record ImportPreviewDto(
 public sealed record CommitImportDto(long ListId, int Added, int Updated, int Duplicates, int Invalid, int NoEmail);
 
 public sealed record OptOutDto(string Id, string? Email, DateTimeOffset Added, string? Reason, string Source);
+
+public sealed record AttachmentDto(long Id, string FileName, string ContentType, long Size, bool Available);
+
+public sealed record CampaignDto(
+    long Id, string Name, long? AccountId, long? ListId, string Subject, string Body, bool IsHtml, string Mode,
+    string Status, string? Note, bool UnsubscribeFooter, DateTimeOffset? ArchivedAt,
+    Dictionary<string, int> Counts, List<AttachmentDto> Attachments);
+
+public sealed record PreviewDto(
+    string To, string Subject, string Body, bool IsHtml, long? ContactId, long? PreviousId, long? NextId, int Total,
+    List<string> UnknownFields, List<string> EmptyFields);
+
+public sealed record PlanDto(int Contacts, int Skipped, int ToDraft, int ToSend, int AlreadySent, int Failed, int Uncertain);
+
+public sealed record PlanResponseDto(PlanDto Plan, bool SupportsDrafts, string? Account, string? FromEmail);
