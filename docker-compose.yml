@@ -63,10 +63,15 @@ services:
       OpenIdConnectOptions__RedirectUri: "/"
       OpenIdConnectOptions__RequireHttpsMetadata: "true"
       OpenIdConnectOptions__RequireSecureCookies: "false"
-      # Everything goes to the API: /api/* with the user's token attached, /u/* (public unsubscribe) and the UI.
+      # Everything goes to the API. The image bakes in a "product-feedback" route for /api/** (to minimalapiapp), so
+      # this /api route needs a lower Order to win, as in coffee-journal. The catch-all covers the UI and /u/* (public
+      # unsubscribe pages).
       ReverseProxy__Routes__api-route__ClusterId: "mailmerge-api"
-      ReverseProxy__Routes__api-route__Match__Path: "/{**catch-all}"
-      ReverseProxy__Routes__api-route__Order: "100"
+      ReverseProxy__Routes__api-route__Match__Path: "/api/{**remainder}"
+      ReverseProxy__Routes__api-route__Order: "-10"
+      ReverseProxy__Routes__app-route__ClusterId: "mailmerge-api"
+      ReverseProxy__Routes__app-route__Match__Path: "/{**catch-all}"
+      ReverseProxy__Routes__app-route__Order: "100"
       ReverseProxy__Clusters__mailmerge-api__Destinations__destination1__Address: "http://mailmerge-api:8080/"
 
 secrets:

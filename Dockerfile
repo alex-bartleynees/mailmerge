@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7-labs
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
-RUN apk add --no-cache tzdata icu-libs
+# krb5-libs: Npgsql probes for GSSAPI on startup and logs an error on Alpine without it.
+RUN apk add --no-cache tzdata icu-libs krb5-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 WORKDIR /app
 EXPOSE 8080
