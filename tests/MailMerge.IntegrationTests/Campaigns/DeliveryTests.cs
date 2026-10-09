@@ -98,8 +98,8 @@ public sealed class DeliveryTests(MailMergeApiFactory api)
         await RunAndWaitAsync(client, campaign.Id, "send");
 
         var sent = Outbox(account.Id).Sent.Single();
-        sent.TextBody.Should().Contain($"{MailMergeApiFactory.PublicBaseUrl}/api/public/unsubscribe/");
-        sent.Headers["List-Unsubscribe"].Should().StartWith($"<{MailMergeApiFactory.PublicBaseUrl}/api/public/unsubscribe/");
+        sent.TextBody.Should().Contain($"{MailMergeApiFactory.PublicBaseUrl}/u/");
+        sent.Headers["List-Unsubscribe"].Should().StartWith($"<{MailMergeApiFactory.PublicBaseUrl}/u/");
     }
 
     [Fact]

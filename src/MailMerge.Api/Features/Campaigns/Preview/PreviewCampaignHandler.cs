@@ -1,5 +1,6 @@
 using MailMerge.Api.Features.Campaigns.Delivery;
 using MailMerge.Api.Features.Contacts;
+using MailMerge.Api.Features.OptOuts.Unsubscribe;
 using MailMerge.Api.Host;
 using MailMerge.Api.Shared;
 using MailMerge.Api.Shared.Merging;
@@ -41,7 +42,7 @@ public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSe
         var body = MergeTemplate.Render(campaign.Body, data, campaign.IsHtml);
         if (campaign.UnsubscribeFooter)
         {
-            body += MessageBuilder.Footer($"{settings.Value.PublicBaseUrl.TrimEnd('/')}/unsubscribe/preview", campaign.IsHtml);
+            body += MessageBuilder.Footer($"{settings.Value.PublicBaseUrl.TrimEnd('/')}{UnsubscribeLinks.PublicPath}/preview", campaign.IsHtml);
         }
 
         return new PreviewCampaignResponse(

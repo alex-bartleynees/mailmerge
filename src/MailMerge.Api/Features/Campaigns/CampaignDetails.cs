@@ -6,7 +6,8 @@ namespace MailMerge.Api.Features.Campaigns;
 
 public sealed record AttachmentView(long Id, string FileName, string ContentType, long Size, bool Available);
 
-/// <summary>An email campaign with its progress counts (keyed by message status, plus "total").</summary>
+/// <summary>An email campaign with its progress counts (keyed by message status, plus "total").
+/// <c>PurgesOn</c> is when retention will archive it (null while running, archived, or awaiting an "uncertain" decision).</summary>
 public sealed record CampaignDetails(
     long Id,
     string Name,
@@ -22,6 +23,7 @@ public sealed record CampaignDetails(
     DateTimeOffset Created,
     DateTimeOffset LastActivityAt,
     DateTimeOffset? ArchivedAt,
+    DateTimeOffset? PurgesOn,
     IReadOnlyDictionary<string, int> Counts,
     IReadOnlyList<AttachmentView> Attachments)
 {
@@ -30,6 +32,12 @@ public sealed record CampaignDetails(
     {
         var rows = await campaigns.AsNoTracking().ToListAsync(ct);
         var ids = rows.Select(c => c.Id).ToList();
+        var retentionDays = rows.Count == 0
+            ? 0
+            : await db.Workspaces.Where(w => w.Id == rows[0].WorkspaceId).Select(w => w.RetentionDays).SingleAsync(ct);
+        var blocked = await db.Messages.AsNoTracking()
+            .Where(m => ids.Contains(m.CampaignId) && (m.Status == MessageStatus.Uncertain || m.Status == MessageStatus.Drafting || m.Status == MessageStatus.Sending))
+            .Select(m => m.CampaignId).Distinct().ToListAsync(ct);
 
         var counts = await db.Messages.AsNoTracking()
             .Where(m => ids.Contains(m.CampaignId))
@@ -45,6 +53,7 @@ public sealed record CampaignDetails(
         return rows.Select(c => new CampaignDetails(
                 c.Id, c.Name, c.AccountId, c.ListId, c.Subject, c.Body, c.IsHtml, c.Mode, c.Status, c.Note,
                 c.UnsubscribeFooter, c.Created, c.LastActivityAt, c.ArchivedAt,
+                c.IsArchived || c.Status == CampaignStatus.Running || blocked.Contains(c.Id) ? null : c.LastActivityAt.AddDays(retentionDays),
                 c.Summary ?? StatusCounts(counts.Where(x => x.CampaignId == c.Id).Select(x => (x.Status, x.Count))),
                 attachments.Where(a => a.CampaignId == c.Id).Select(a => a.View).ToList()))
             .ToList();

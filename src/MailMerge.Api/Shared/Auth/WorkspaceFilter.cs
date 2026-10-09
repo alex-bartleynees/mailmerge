@@ -42,7 +42,7 @@ internal sealed class WorkspaceFilter(
         }
 
         var workspace = await directory.ResolveAsync(db, group, http.RequestAborted);
-        currentUser.Resolve(subject, user.Email(), user.DisplayName(), workspace.Id, workspace.Name);
+        currentUser.Resolve(subject, user.Email(), user.DisplayName(), workspace.Id, workspace.Name, group);
         return await next(context);
     }
 

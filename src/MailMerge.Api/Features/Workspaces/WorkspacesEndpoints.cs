@@ -1,4 +1,5 @@
 using MailMerge.Api.Features.Workspaces.GetCurrent;
+using MailMerge.Api.Features.Workspaces.Update;
 using MailMerge.Api.Shared.Http;
 using SharedKernel.AspNetCore;
 
@@ -10,5 +11,6 @@ public sealed class WorkspacesEndpoints : IEndpointDefinition
     {
         var group = app.MapStaffGroup("/api/workspace", "Workspace");
         GetCurrentWorkspaceEndpoint.Map(group);
+        UpdateWorkspaceEndpoint.Map(group);
     }
 }

@@ -87,7 +87,7 @@ public sealed record AttachmentDto(long Id, string FileName, string ContentType,
 
 public sealed record CampaignDto(
     long Id, string Name, long? AccountId, long? ListId, string Subject, string Body, bool IsHtml, string Mode,
-    string Status, string? Note, bool UnsubscribeFooter, DateTimeOffset? ArchivedAt,
+    string Status, string? Note, bool UnsubscribeFooter, DateTimeOffset? ArchivedAt, DateTimeOffset? PurgesOn,
     Dictionary<string, int> Counts, List<AttachmentDto> Attachments);
 
 public sealed record PreviewDto(

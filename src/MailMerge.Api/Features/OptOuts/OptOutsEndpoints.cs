@@ -1,6 +1,7 @@
 using MailMerge.Api.Features.OptOuts.Add;
 using MailMerge.Api.Features.OptOuts.GetAll;
 using MailMerge.Api.Features.OptOuts.Remove;
+using MailMerge.Api.Features.OptOuts.Unsubscribe;
 using MailMerge.Api.Shared.Http;
 using SharedKernel.AspNetCore;
 
@@ -14,5 +15,7 @@ public sealed class OptOutsEndpoints : IEndpointDefinition
         GetOptOutsEndpoint.Map(group);
         AddOptOutsEndpoint.Map(group);
         RemoveOptOutEndpoint.Map(group);
+
+        UnsubscribeEndpoints.Map(app);
     }
 }

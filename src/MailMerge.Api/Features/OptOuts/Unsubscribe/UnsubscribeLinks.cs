@@ -12,7 +12,11 @@ namespace MailMerge.Api.Features.OptOuts.Unsubscribe;
 /// </summary>
 public sealed class UnsubscribeLinks(IDataProtectionProvider protection, IOptions<AppSettings> app)
 {
-    public const string PublicPath = "/api/public/unsubscribe";
+    /// <summary>
+    /// Outside <c>/api</c> on purpose: the BFF demands a CSRF header on signed-in <c>/api</c> POSTs, which would break the
+    /// confirm button for a staff member clicking the link in their own test email.
+    /// </summary>
+    public const string PublicPath = "/u";
 
     private readonly IDataProtector _protector = protection.CreateProtector("MailMerge.Unsubscribe.v1");
 

@@ -12,18 +12,20 @@ public sealed class CurrentUser
     public string? Name { get; private set; }
     public long WorkspaceId { get; private set; }
     public string WorkspaceName { get; private set; } = "";
+    public string WorkspaceGroup { get; private set; } = "";
 
     public bool IsResolved => WorkspaceId != 0;
 
     /// <summary>Who to record in audit fields: the email when known, else the Keycloak subject.</summary>
     public string DisplayIdentity => Email ?? Subject;
 
-    internal void Resolve(string subject, string? email, string? name, long workspaceId, string workspaceName)
+    internal void Resolve(string subject, string? email, string? name, long workspaceId, string workspaceName, string workspaceGroup)
     {
         Subject = subject;
         Email = email;
         Name = name;
         WorkspaceId = workspaceId;
         WorkspaceName = workspaceName;
+        WorkspaceGroup = workspaceGroup;
     }
 }
