@@ -3,6 +3,7 @@ using MailMerge.Api.Features.Accounts.Microsoft365;
 using MailMerge.Api.Features.Accounts.Sending;
 using MailMerge.Api.Features.Campaigns.Delivery;
 using MailMerge.Api.Features.OptOuts;
+using MailMerge.Api.Features.OptOuts.Unsubscribe;
 
 namespace MailMerge.Api.Host;
 
@@ -23,6 +24,11 @@ internal static class FeatureServices
         services.AddSingleton<AccountSecretsProtector>();
         services.AddSingleton<TestMailbox>();
         services.AddSingleton<IMailSenderFactory, MailSenderFactory>();
+
+        services.AddSingleton<UnsubscribeLinks>();
+        services.AddSingleton<DeliverySignal>();
+        services.AddSingleton<CampaignWorker>();
+        services.AddHostedService(sp => sp.GetRequiredService<CampaignWorker>());
 
         return services;
     }

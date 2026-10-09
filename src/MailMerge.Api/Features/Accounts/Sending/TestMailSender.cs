@@ -26,14 +26,23 @@ public sealed class TestMailbox
     }
 }
 
+/// <summary>
+/// Test mode. Recipients at <c>bounce.invalid</c> are rejected and at <c>timeout.invalid</c> lose the connection
+/// mid-send, so staff (and tests) can see how failures and "unsure" messages look. <c>.invalid</c> is reserved and
+/// can never be a real address.
+/// </summary>
 public sealed class TestMailSender(SendingAccount account, TestMailbox mailbox, TimeProvider clock) : IMailSender
 {
+    public const string BounceDomain = "@bounce.invalid";
+    public const string TimeoutDomain = "@timeout.invalid";
+
     public bool SupportsDrafts => true;
 
     private TestMailbox.Folders Folders => mailbox.For(account.Id);
 
     public Task<string> CreateDraftAsync(OutgoingMessage message, CancellationToken ct)
     {
+        RejectBounces(message.To);
         var mime = Build(message);
         var id = Guid.NewGuid().ToString("N");
         Folders.Drafts[id] = mime;
@@ -47,6 +56,8 @@ public sealed class TestMailSender(SendingAccount account, TestMailbox mailbox, 
             throw new MessageRejectedException("Test draft not found.");
         }
 
+        SimulateTimeout(mime.To.ToString());
+
         Folders.Sent.Enqueue(mime);
         mailbox.Trim(Folders);
         return Task.CompletedTask;
@@ -54,6 +65,8 @@ public sealed class TestMailSender(SendingAccount account, TestMailbox mailbox, 
 
     public Task SendNowAsync(OutgoingMessage message, CancellationToken ct)
     {
+        RejectBounces(message.To);
+        SimulateTimeout(message.To);
         Folders.Sent.Enqueue(Build(message));
         mailbox.Trim(Folders);
         return Task.CompletedTask;
@@ -61,6 +74,22 @@ public sealed class TestMailSender(SendingAccount account, TestMailbox mailbox, 
 
     public Task<string> CheckAsync(CancellationToken ct) =>
         Task.FromResult("Test mode: nothing is really sent. Messages are kept in the app's test outbox.");
+
+    private static void RejectBounces(string to)
+    {
+        if (to.EndsWith(BounceDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new MessageRejectedException($"Test mode: the server rejected {to}.");
+        }
+    }
+
+    private static void SimulateTimeout(string to)
+    {
+        if (to.EndsWith(TimeoutDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IOException("Test mode: the connection dropped while sending.");
+        }
+    }
 
     private MimeMessage Build(OutgoingMessage message) =>
         MimeBuilder.Build(message, account.FromEmail.Length > 0 ? account.FromEmail : "test@example.com",

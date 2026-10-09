@@ -10,7 +10,7 @@ namespace MailMerge.Api.Features.Campaigns.Delivery;
 public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOuts, TimeProvider clock)
 {
     /// <summary>Null if the contact can be emailed, otherwise the reason shown to staff.</summary>
-    public static string? SkipReason(Contact contact, OptOutMatcher optedOut)
+    public static string? SkipReason(Contact contact, bool optedOut)
     {
         if (!EmailAddress.IsValid(contact.Email))
         {
@@ -22,7 +22,7 @@ public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOut
             return "Marked do-not-email";
         }
 
-        return optedOut.IsOptedOut(contact.Email) ? "On the opt-out list" : null;
+        return optedOut ? "On the opt-out list" : null;
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOut
 
         foreach (var contact in contacts)
         {
-            var reason = SkipReason(contact, matcher);
+            var reason = SkipReason(contact, matcher.IsOptedOut(contact.Email));
             var status = reason is null ? MessageStatus.Pending : MessageStatus.Skipped;
             if (existing.TryGetValue(contact.Email, out var message))
             {
@@ -85,7 +85,7 @@ public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOut
         int skipped = 0, toDraft = 0, toSend = 0, sent = 0, failed = 0, uncertain = 0;
         foreach (var contact in contacts)
         {
-            if (SkipReason(contact, matcher) is not null)
+            if (SkipReason(contact, matcher.IsOptedOut(contact.Email)) is not null)
             {
                 skipped++;
                 continue;

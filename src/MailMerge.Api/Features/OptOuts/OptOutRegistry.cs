@@ -22,6 +22,12 @@ public sealed class OptOutRegistry(MailMergeDbContext db)
         return new OptOutMatcher(key, hashes.ToHashSet(StringComparer.Ordinal));
     }
 
+    public async Task<bool> IsOptedOutAsync(long workspaceId, string email, CancellationToken ct)
+    {
+        var hash = Hash(await KeyAsync(workspaceId, ct), email);
+        return await db.OptOuts.IgnoreQueryFilters().AnyAsync(o => o.WorkspaceId == workspaceId && o.EmailHash == hash, ct);
+    }
+
     public async Task<Func<string, string>> HasherAsync(long workspaceId, CancellationToken ct)
     {
         var key = await KeyAsync(workspaceId, ct);

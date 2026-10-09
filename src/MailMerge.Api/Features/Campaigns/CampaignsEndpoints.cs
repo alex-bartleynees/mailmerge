@@ -8,6 +8,12 @@ using MailMerge.Api.Features.Campaigns.GetPlan;
 using MailMerge.Api.Features.Campaigns.Preview;
 using MailMerge.Api.Features.Campaigns.RemoveAttachment;
 using MailMerge.Api.Features.Campaigns.SendTest;
+using MailMerge.Api.Features.Campaigns.ExportLog;
+using MailMerge.Api.Features.Campaigns.MarkMessage;
+using MailMerge.Api.Features.Campaigns.Messages;
+using MailMerge.Api.Features.Campaigns.Pause;
+using MailMerge.Api.Features.Campaigns.RetryFailed;
+using MailMerge.Api.Features.Campaigns.Run;
 using MailMerge.Api.Features.Campaigns.Update;
 using MailMerge.Api.Shared.Http;
 using SharedKernel.AspNetCore;
@@ -30,5 +36,11 @@ public sealed class CampaignsEndpoints : IEndpointDefinition
         PreviewCampaignEndpoint.Map(group);
         GetPlanEndpoint.Map(group);
         SendTestEndpoint.Map(group);
+        RunCampaignEndpoint.Map(group);
+        PauseCampaignEndpoint.Map(group);
+        RetryFailedEndpoint.Map(group);
+        GetMessagesEndpoint.Map(group);
+        MarkMessageEndpoint.Map(group);
+        ExportLogEndpoint.Map(group);
     }
 }
