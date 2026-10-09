@@ -7,8 +7,10 @@ migration.
 
 ## Implementation notes (deviations from the plan below)
 
-- Section 8 decisions were taken as recommended: portfolio-cluster, a dedicated `mailmerge` realm, the
-  vanilla UI behind the BFF, and Microsoft auth code + PKCE. Device-code fallback was **not** built.
+- Section 8 decisions: portfolio-cluster, the vanilla UI behind the BFF, and Microsoft auth code + PKCE,
+  as recommended. Keycloak uses the existing realms instead of a dedicated one: `production` for the
+  deployed app, `development` for local runs. Access is gated by the `mailmerge-user` client role, the
+  `mailmerge-api` audience and a `/mailmerge/<shop>` group. Device-code fallback was **not** built.
 - Unsubscribe links are `/u/{token}`, not `/api/public/…`. The BFF demands a CSRF header on signed-in
   `/api` POSTs, which would break the confirm button for a staff member testing their own email.
 - Retention settings live on `PUT /api/workspace` (with the shop name) rather than separate Privacy
@@ -17,8 +19,6 @@ migration.
   failures for `@bounce.invalid` and `@timeout.invalid` recipients.
 - Development-only sign-in (`Auth:Development:Enabled` in the Development environment) for running the
   UI without Keycloak.
-- The shared authgateway-bff chart needs `OpenIdConnectOptions__AuthorityPath` templated before it can
-  use the `mailmerge` realm (see `deployment/bff/values-mailmerge.yaml`).
 - A user in several workspace groups gets the first alphabetically. The API accepts an `X-Workspace`
   header, but the UI has no switcher yet.
 
@@ -360,7 +360,7 @@ Each phase ends green: tests pass and nothing is left half-ported.
 
 1. **Hosting:** the plan assumes the portfolio-cluster (Keycloak, Postgres, Redis, OTel and Argo are
    already there). Is that OK for a client's business tool, or should it run somewhere separate?
-2. **Keycloak realm:** a dedicated `mailmerge` realm (recommended: no self-registration, shop-specific
+2. **Keycloak realm:** **Decided: existing `production` and `development` realms.** Originally proposed: a dedicated `mailmerge` realm (recommended: no self-registration, shop-specific
    password and 2FA policy, staff isolated from personal-project users) or the shared `production`
    realm with the `mailmerge-user` role gate?
 3. **UI:** option A (keep vanilla, adapt to the BFF) now and Angular later, or go straight to Angular?

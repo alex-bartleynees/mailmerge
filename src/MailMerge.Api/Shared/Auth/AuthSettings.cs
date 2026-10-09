@@ -7,7 +7,7 @@ public sealed class AuthSettings
 {
     public const string SectionName = "Auth";
 
-    /// <summary>Realm URL, e.g. <c>https://identity.example.com/realms/mailmerge</c>.</summary>
+    /// <summary>Realm URL, e.g. <c>https://identity.example.com/realms/production</c>.</summary>
     [Required]
     public string Authority { get; set; } = "";
 

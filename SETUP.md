@@ -6,25 +6,34 @@ Placeholders: `mailmerge.alexbartleynees.com` (the app), `identity.alexbartleyne
 
 ## 1. Keycloak
 
-A dedicated realm keeps shop staff apart from personal-app users and lets the shop have its own password policy.
+MailMerge uses your existing realms: **production** for the deployed app, **development** for local runs
+(`docker compose`). Do the steps below in each realm you need.
 
-1. **Create realm** `mailmerge`. Under **Realm settings**:
-   - **Login:** User registration **off**.
-   - **Security defences > Brute force detection:** **on** (lockout after repeated wrong passwords).
-   - Optionally require OTP under **Authentication > Required actions**.
-2. **Clients > Create client** `mailmerge` (OpenID Connect):
+These realms are shared with your other apps, and other apps add users to them (coffee-journal's signup creates
+production accounts). So signing in isn't enough to get into MailMerge: a user also needs the `mailmerge-user` client role and
+membership of a shop group. Don't add `mailmerge-user` to the realm's default roles.
+
+1. **Clients > Create client** `mailmerge` (OpenID Connect):
    - Client authentication **on** (confidential), Standard flow **on**, everything else off.
-   - Valid redirect URIs: `https://mailmerge.alexbartleynees.com/signin-oidc`, plus `http://localhost:5224/*` for dev.
-   - Valid post-logout redirect URIs: `https://mailmerge.alexbartleynees.com/*`.
+   - Valid redirect URIs: production `https://mailmerge.alexbartleynees.com/signin-oidc`; development
+     `http://localhost:5224/*`.
+   - Valid post-logout redirect URIs: production `https://mailmerge.alexbartleynees.com/*`; development
+     `http://localhost:5224/*`.
    - Copy the client secret from **Credentials**.
-3. **Client roles:** on the `mailmerge` client, add role `mailmerge-user`.
-4. **Client scopes > mailmerge-dedicated > Add mapper:**
-   - **Audience**: name `mailmerge-api`, *Included Custom Audience* `mailmerge-api`, add to access token.
+2. **Client roles:** on the `mailmerge` client, add role `mailmerge-user`.
+3. **Client scopes > mailmerge-dedicated > Add mapper:**
+   - **Audience**: name `mailmerge-api`, *Included Custom Audience* `mailmerge-api`, add to access token. The API
+     only accepts tokens with this audience, so tokens issued to your other apps' clients are rejected.
    - **Group Membership**: name `groups`, token claim `groups`, *Full group path* **on**, add to access token.
-5. **Groups:** create `mailmerge`, then a child per business, e.g. `mailmerge/max-wilson`. The group's last segment
-   becomes the shop's initial name ("Max Wilson"; rename it in the app).
-6. **Users:** create each staff member, set a temporary password, add them to their shop's group, and grant the
-   client role `mailmerge-user` (or grant the role to the `mailmerge` group so membership is enough).
+     Groups from other apps appear in the claim too; MailMerge ignores anything outside `/mailmerge/`.
+4. **Groups:** create `mailmerge`, then a child per business, e.g. `mailmerge/max-wilson`. The group's last segment
+   becomes the shop's initial name ("Max Wilson"; rename it in the app). On the parent `mailmerge` group, assign
+   the client role `mailmerge-user` under **Role mapping**; subgroups inherit it, so adding someone to their shop's
+   group is all it takes.
+5. **Users:** create each staff member (or reuse an existing account) and add them to their shop's group. Add
+   yourself too if you want to help them inside the app.
+6. **Realm settings** (these affect every app in the realm, so check rather than change): **Security defences >
+   Brute force detection** should be on, so repeated wrong passwords lock the account for a while.
 
 Someone in two shop groups can use both; the app uses the first alphabetically.
 
@@ -85,9 +94,8 @@ startup.
    docker push creativefree/mailmerge-api:<tag>
    ```
    Set `image.tag` in `deployment/helm-charts/mailmerge-api/values.yaml`.
-2. **BFF:** copy `deployment/bff/values-mailmerge.yaml` into the authgateway-bff repo's chart folder. That chart
-   needs one addition to `templates/config.yaml` so the BFF uses the `mailmerge` realm (see the comment in the
-   values file).
+2. **BFF:** copy `deployment/bff/values-mailmerge.yaml` into the authgateway-bff repo's chart folder. No chart
+   changes are needed: it already uses the production realm.
 3. **Argo CD:** copy `deployment/argocd/*.yaml` into `portfolio-cluster/components/applications/` and list them in
    its `kustomization.yaml`.
 4. **DNS:** point `mailmerge.alexbartleynees.com` at the cluster ingress. cert-manager issues the certificate.

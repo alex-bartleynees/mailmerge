@@ -2,7 +2,7 @@
 #
 #   browser ──► mailmerge-bff (:5224) ──► mailmerge-api (:8080) ──► postgres
 #                    │                         └─► Microsoft Graph / SMTP
-#                    └─ Keycloak (hosted identity server, realm "mailmerge")
+#                    └─ Keycloak (hosted identity server, realm "development")
 #
 # The BFF is the reusable authgateway-bff image: it handles Keycloak login (/bff/*), keeps tokens server-side,
 # enforces CSRF, and proxies everything else to the API (which also serves the UI).
@@ -41,7 +41,7 @@ services:
     environment:
       ConnectionStrings__MailMerge: "Host=postgres;Database=mailmerge;Username=mailmerge;Password=mailmerge"
       App__PublicBaseUrl: "http://localhost:5224"
-      Auth__Authority: "https://identity.alexbartleynees.com/realms/mailmerge"
+      Auth__Authority: "https://identity.alexbartleynees.com/realms/development"
       Auth__Audience: "mailmerge-api"
       Microsoft__ClientId: ${MICROSOFT_CLIENT_ID:-}
       Microsoft__ClientSecret: ${MICROSOFT_CLIENT_SECRET:-}
@@ -57,7 +57,7 @@ services:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       Redis__Host: "redis:6379"
       KEYCLOAK_SERVER_URL: "https://identity.alexbartleynees.com"
-      OpenIdConnectOptions__AuthorityPath: "realms/mailmerge"
+      OpenIdConnectOptions__AuthorityPath: "realms/development"
       OpenIdConnectOptions__ClientId: "mailmerge"
       OpenIdConnectOptions__ClientSecret: ${MAILMERGE_CLIENT_SECRET:-}
       OpenIdConnectOptions__RedirectUri: "/"

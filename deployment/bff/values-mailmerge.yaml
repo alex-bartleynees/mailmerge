@@ -1,16 +1,12 @@
 # App-specific values for the shared authgateway-bff chart. Copy into
 # authgateway-bff/deployment/helm-charts/authgateway-bff/values-mailmerge.yaml.
 #
-# The BFF is the only public entrypoint: it signs staff in with Keycloak (realm "mailmerge"), keeps tokens
-# server-side, enforces CSRF on /api writes, and proxies everything to the MailMerge API, which serves the UI,
-# the API and the public unsubscribe pages (/u/*).
+# The BFF is the only public entrypoint: it signs staff in with Keycloak (the production realm, which is the
+# chart default), keeps tokens server-side, enforces CSRF on /api writes, and proxies everything to the
+# MailMerge API, which serves the UI, the API and the public unsubscribe pages (/u/*).
 config:
   openIdConnect:
     clientId: "mailmerge"
-    # Needs a small chart change in authgateway-bff: its config.yaml doesn't template AuthorityPath yet, so every
-    # instance uses appsettings' "realms/production". Add:
-    #   OpenIdConnectOptions__AuthorityPath: {{ .Values.config.openIdConnect.authorityPath | default "realms/production" | quote }}
-    authorityPath: "realms/mailmerge"
     redirectUri: "/"
     oidcCookieSameSite: "Lax"
     cookieExpireTimeSpanHours: 12
