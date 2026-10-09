@@ -73,15 +73,13 @@ After that anyone can connect a mailbox with no approval screen. A short video c
 
 ## 3. Secrets (namespace `mailmerge`)
 
-```sh
-kubectl create namespace mailmerge
-kubectl -n mailmerge create secret generic mailmerge-db-secret \
-  --from-literal=CONNECTION_STRING='Host=<postgres-host>;Database=mailmerge;Username=mailmerge;Password=<pw>'
-kubectl -n mailmerge create secret generic mailmerge-microsoft \
-  --from-literal=CLIENT_ID=<entra-client-id> --from-literal=CLIENT_SECRET=<entra-client-secret>
-kubectl -n mailmerge create secret generic keycloak-auth \
-  --from-literal=MAILMERGE_CLIENT_SECRET=<keycloak-client-secret>
-```
+Add these to `portfolio-cluster/components/secrets/secrets.encrypted.yaml` (SOPS, applied by Argo CD via KSOPS):
+
+| Secret | Keys | Used by |
+|---|---|---|
+| `mailmerge-db-secret` | `CONNECTION_STRING`: `Host=<postgres-host>;Database=mailmerge;Username=mailmerge;Password=<pw>` | API |
+| `mailmerge-microsoft` | `CLIENT_ID`, `CLIENT_SECRET` from the Entra app | API (optional: without it only SMTP and test accounts work) |
+| `keycloak-auth` | `MAILMERGE_CLIENT_SECRET` from the Keycloak `mailmerge` client | BFF |
 
 Create the `mailmerge` database and user on the cluster's Postgres first. The app applies its own migrations on
 startup.
@@ -96,8 +94,9 @@ startup.
    Set `image.tag` in `deployment/helm-charts/mailmerge-api/values.yaml`.
 2. **BFF:** copy `deployment/bff/values-mailmerge.yaml` into the authgateway-bff repo's chart folder. No chart
    changes are needed: it already uses the production realm.
-3. **Argo CD:** copy `deployment/argocd/*.yaml` into `portfolio-cluster/components/applications/` and list them in
-   its `kustomization.yaml`.
+3. **Argo CD:** `mailmerge-api` and `mailmerge-bff` are registered in
+   `portfolio-cluster/components/applications/`. They sync once this repo is on GitHub and the BFF values file is
+   in the authgateway-bff repo.
 4. **DNS:** point `mailmerge.alexbartleynees.com` at the cluster ingress. cert-manager issues the certificate.
 
 The API runs as a single replica with the `Recreate` strategy: its delivery worker assumes it's the only one.

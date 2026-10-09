@@ -1,4 +1,4 @@
-# Copy into portfolio-cluster/components/applications/ and add to its kustomization.yaml.
+# Registered in portfolio-cluster/components/applications/ (kept here as the reference copy).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
