@@ -81,8 +81,24 @@ Add these to `portfolio-cluster/components/secrets/secrets.encrypted.yaml` (SOPS
 | `mailmerge-microsoft` | `CLIENT_ID`, `CLIENT_SECRET` from the Entra app | API (optional: without it only SMTP and test accounts work) |
 | `keycloak-auth` | `MAILMERGE_CLIENT_SECRET` from the Keycloak `mailmerge` client | BFF |
 
-Create the `mailmerge` database and user on the cluster's Postgres first. The app applies its own migrations on
-startup.
+### Database (once)
+
+The app doesn't create its database or login. Create them on the cluster's Postgres before the first deploy, using
+the same password as in `mailmerge-db-secret`:
+
+```sh
+kubectl exec -it deployment/postgres -n database -- psql -U postgres
+```
+
+```sql
+CREATE USER mailmerge WITH PASSWORD '<pw>';
+CREATE DATABASE mailmerge OWNER mailmerge;
+```
+
+After that the app manages the schema itself. On every start it applies any pending EF Core migrations before
+serving requests, so new versions upgrade the database automatically. If a migration fails, the pod fails to start
+(see its logs) and the database stays at the previous version. That's safe because the API runs as a single
+replica with the `Recreate` strategy, so only one instance migrates at a time.
 
 ## 4. Deploy
 
