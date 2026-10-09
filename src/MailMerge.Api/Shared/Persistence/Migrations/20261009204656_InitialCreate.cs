@@ -59,22 +59,6 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "microsoft_sign_ins",
-                columns: table => new
-                {
-                    state = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    account_id = table.Column<long>(type: "bigint", nullable: false),
-                    workspace_id = table.Column<long>(type: "bigint", nullable: false),
-                    user_subject = table.Column<string>(type: "text", nullable: false),
-                    protected_code_verifier = table.Column<string>(type: "text", nullable: false),
-                    expires = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_microsoft_sign_ins", x => x.state);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "opt_outs",
                 columns: table => new
                 {
@@ -88,6 +72,22 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_opt_outs", x => new { x.workspace_id, x.email_hash });
+                });
+
+            migrationBuilder.CreateTable(
+                name: "pending_microsoft_sign_ins",
+                columns: table => new
+                {
+                    state = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    account_id = table.Column<long>(type: "bigint", nullable: false),
+                    workspace_id = table.Column<long>(type: "bigint", nullable: false),
+                    user_subject = table.Column<string>(type: "text", nullable: false),
+                    protected_code_verifier = table.Column<string>(type: "text", nullable: false),
+                    expires = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_pending_microsoft_sign_ins", x => x.state);
                 });
 
             migrationBuilder.CreateTable(
@@ -123,6 +123,7 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                     protected_secrets = table.Column<byte[]>(type: "bytea", nullable: true),
                     microsoft_token_cache = table.Column<byte[]>(type: "bytea", nullable: true),
                     microsoft_account = table.Column<string>(type: "text", nullable: true),
+                    microsoft_account_id = table.Column<string>(type: "text", nullable: true),
                     signed_in_by = table.Column<string>(type: "text", nullable: true),
                     next_send_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     created = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -362,10 +363,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                 name: "messages");
 
             migrationBuilder.DropTable(
-                name: "microsoft_sign_ins");
+                name: "opt_outs");
 
             migrationBuilder.DropTable(
-                name: "opt_outs");
+                name: "pending_microsoft_sign_ins");
 
             migrationBuilder.DropTable(
                 name: "privacy_log");

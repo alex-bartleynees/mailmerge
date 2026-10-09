@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MailMerge.Api.Shared.Persistence.Migrations
 {
     [DbContext(typeof(MailMergeDbContext))]
-    [Migration("20261009202953_InitialCreate")]
+    [Migration("20261009204656_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("MailMerge.Api.Features.Accounts.MicrosoftSignIn", b =>
+            modelBuilder.Entity("MailMerge.Api.Features.Accounts.PendingMicrosoftSignIn", b =>
                 {
                     b.Property<string>("State")
                         .HasMaxLength(100)
@@ -56,9 +56,9 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                         .HasColumnName("workspace_id");
 
                     b.HasKey("State")
-                        .HasName("pk_microsoft_sign_ins");
+                        .HasName("pk_pending_microsoft_sign_ins");
 
-                    b.ToTable("microsoft_sign_ins", (string)null);
+                    b.ToTable("pending_microsoft_sign_ins", (string)null);
                 });
 
             modelBuilder.Entity("MailMerge.Api.Features.Accounts.SendingAccount", b =>
@@ -95,6 +95,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                     b.Property<string>("MicrosoftAccount")
                         .HasColumnType("text")
                         .HasColumnName("microsoft_account");
+
+                    b.Property<string>("MicrosoftAccountId")
+                        .HasColumnType("text")
+                        .HasColumnName("microsoft_account_id");
 
                     b.Property<byte[]>("MicrosoftTokenCache")
                         .HasColumnType("bytea")

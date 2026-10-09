@@ -39,6 +39,9 @@ public sealed class SendingAccount : IWorkspaceOwned
     /// <summary>The Microsoft mailbox signed in, e.g. sales@shop.co.nz.</summary>
     public string? MicrosoftAccount { get; set; }
 
+    /// <summary>MSAL home account id, used to find the cached tokens for <see cref="MicrosoftAccount"/>.</summary>
+    public string? MicrosoftAccountId { get; set; }
+
     /// <summary>Staff member who connected the Microsoft mailbox.</summary>
     public string? SignedInBy { get; set; }
 

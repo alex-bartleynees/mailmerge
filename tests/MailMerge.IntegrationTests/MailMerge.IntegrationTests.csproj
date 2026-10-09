@@ -3,6 +3,8 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Assertions dereference nullable library results directly; a null fails the test anyway. -->
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8604</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

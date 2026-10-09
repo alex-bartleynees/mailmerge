@@ -23,7 +23,7 @@ public sealed class MailMergeDbContext(DbContextOptions<MailMergeDbContext> opti
 {
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<SendingAccount> SendingAccounts => Set<SendingAccount>();
-    public DbSet<MicrosoftSignIn> MicrosoftSignIns => Set<MicrosoftSignIn>();
+    public DbSet<PendingMicrosoftSignIn> PendingMicrosoftSignIns => Set<PendingMicrosoftSignIn>();
     public DbSet<ContactList> ContactLists => Set<ContactList>();
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ImportUpload> ImportUploads => Set<ImportUpload>();
