@@ -3,7 +3,7 @@ namespace: "mailmerge"
 image:
   repository: creativefree/mailmerge-api
   pullPolicy: IfNotPresent
-  tag: latest
+  tag: 817b311
 
 imagePullSecrets: []
 nameOverride: ""
