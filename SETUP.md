@@ -135,11 +135,11 @@ replica with the `Recreate` strategy, so only one instance migrates at a time.
    docker push creativefree/mailmerge-api:<tag>
    ```
    Set `image.tag` in `deployment/helm-charts/mailmerge-api/values.yaml`.
-2. **BFF:** copy `deployment/bff/values-mailmerge.yaml` into the authgateway-bff repo's chart folder. No chart
-   changes are needed: it already uses the production realm.
-3. **Argo CD:** `mailmerge-api` and `mailmerge-bff` are registered in
-   `portfolio-cluster/components/applications/`. They sync once this repo is on GitHub and the BFF values file is
-   in the authgateway-bff repo.
+2. **BFF:** MailMerge's gateway config lives in the authgateway-bff repo as
+   `deployment/helm-charts/authgateway-bff/values-mailmerge.yaml` (routes, client ID, ingress host). It uses the
+   chart's default production realm.
+3. **Argo CD:** `mailmerge-api.yaml` and `mailmerge-bff.yaml` live in `portfolio-cluster/components/applications/`.
+   They sync once this repo is on GitHub.
 4. **DNS:** point `mailmerge.alexbartleynees.com` at the cluster ingress. cert-manager issues the certificate.
 
 The API runs as a single replica with the `Recreate` strategy: its delivery worker assumes it's the only one.

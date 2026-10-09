@@ -110,6 +110,6 @@ Then open <http://localhost:5080> and use a **Test mode** account.
 | `Microsoft__ClientId`, `Microsoft__ClientSecret`, `Microsoft__Tenant` | Entra app for Microsoft 365 mailboxes |
 | `ConnectionStrings__OTLP_Endpoint` | OpenTelemetry collector (optional) |
 
-Deployment: `deployment/helm-charts/mailmerge-api`, `deployment/bff/values-mailmerge.yaml`, `deployment/argocd/`.
+Deployment: `deployment/helm-charts/mailmerge-api` here; the BFF values (`values-mailmerge.yaml`) live in the authgateway-bff repo and the Argo CD apps in portfolio-cluster.
 See [SETUP.md](SETUP.md). Staff guide: [HOW-TO.md](HOW-TO.md). The original Python version is in `legacy/` for
 reference until the .NET version has been tested against a real tenant.
