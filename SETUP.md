@@ -10,32 +10,55 @@ MailMerge uses your existing realms: **production** for the deployed app, **deve
 (`docker compose`). Do the steps below in each realm you need.
 
 These realms are shared with your other apps, and other apps add users to them (coffee-journal's signup creates
-production accounts). So signing in isn't enough to get into MailMerge: a user also needs the `mailmerge-user` client role and
-membership of a shop group. Don't add `mailmerge-user` to the realm's default roles.
+production accounts). MailMerge only accepts an access token that has all three of:
 
-1. **Clients > Create client** `mailmerge` (OpenID Connect):
-   - Client authentication **on** (confidential), Standard flow **on**, everything else off.
-   - Valid redirect URIs: production `https://mailmerge.alexbartleynees.com/signin-oidc`; development
-     `http://localhost:5224/*`.
-   - Valid post-logout redirect URIs: production `https://mailmerge.alexbartleynees.com/*`; development
-     `http://localhost:5224/*`.
-   - Copy the client secret from **Credentials**.
-2. **Client roles:** on the `mailmerge` client, add role `mailmerge-user`.
-3. **Client scopes > mailmerge-dedicated > Add mapper:**
-   - **Audience**: name `mailmerge-api`, *Included Custom Audience* `mailmerge-api`, add to access token. The API
-     only accepts tokens with this audience, so tokens issued to your other apps' clients are rejected.
-   - **Group Membership**: name `groups`, token claim `groups`, *Full group path* **on**, add to access token.
-     Groups from other apps appear in the claim too; MailMerge ignores anything outside `/mailmerge/`.
+- `aud` containing `mailmerge-api`, added by a mapper that only the `mailmerge` client's dedicated scope has;
+- the `mailmerge-user` role on the `mailmerge` client;
+- a `/mailmerge/<shop>` group.
+
+The audience is deliberately not the client ID `mailmerge`. Keycloak's built-in "audience resolve" mapper adds a
+client's ID to the audience of any token whose user holds that client's roles, so a coffee-journal token for a
+staff member would carry `aud: mailmerge`. Nothing adds `mailmerge-api` except the mapper below.
+
+| Setting | Development | Production |
+|---|---|---|
+| Root URL | `http://localhost:5224` | `https://mailmerge.alexbartleynees.com` |
+| Valid redirect URIs | `http://localhost:5224/signin-oidc` | `https://mailmerge.alexbartleynees.com/signin-oidc` |
+| Valid post logout redirect URIs | `http://localhost:5224/*` | `https://mailmerge.alexbartleynees.com/*` |
+
+1. **Clients > Create client**, OpenID Connect, Client ID `mailmerge`:
+   - **Client authentication** on (confidential), **Authorization** off.
+   - Authentication flow: **Standard flow** only. Untick *Direct access grants* (on by default); leave Implicit,
+     Service accounts and Device grant off. PKCE method `S256` if offered.
+   - Login settings from the table. Leave **Web origins** empty: the BFF talks to Keycloak server-side.
+   - Copy the secret from **Credentials** (`MAILMERGE_CLIENT_SECRET` in `.env` locally, or the `keycloak-auth`
+     secret in the cluster).
+2. **Clients > mailmerge > Roles > Create role** `mailmerge-user`.
+3. **Clients > mailmerge > Client scopes > mailmerge-dedicated > Add mapper > By configuration.** Use the client's
+   dedicated scope, never a shared or realm-default client scope:
+   - **Audience**: name `mailmerge-api audience`, *Included Client Audience* empty, *Included Custom Audience*
+     `mailmerge-api`, access token on, ID token off.
+   - **Group Membership**: name `groups`, token claim `groups`, *Full group path* **on**, access token on, ID token
+     off. Groups from other apps appear in the claim too; MailMerge ignores anything outside `/mailmerge/`.
 4. **Groups:** create `mailmerge`, then a child per business, e.g. `mailmerge/max-wilson`. The group's last segment
-   becomes the shop's initial name ("Max Wilson"; rename it in the app). On the parent `mailmerge` group, assign
-   the client role `mailmerge-user` under **Role mapping**; subgroups inherit it, so adding someone to their shop's
-   group is all it takes.
-5. **Users:** create each staff member (or reuse an existing account) and add them to their shop's group. Add
+   becomes the shop's initial name ("Max Wilson"; rename it in the app). On the parent `mailmerge` group, open
+   **Role mapping > Assign role**, filter by client roles and assign `mailmerge` `mailmerge-user`. Subgroups
+   inherit it, so adding someone to their shop's group is all it takes. Never add `mailmerge-user` to the realm's
+   default roles.
+5. **Users:** create each staff member (or reuse an existing account) and **Join group** for their shop. Add
    yourself too if you want to help them inside the app.
-6. **Realm settings** (these affect every app in the realm, so check rather than change): **Security defences >
+6. **Verify** with **Clients > mailmerge > Client scopes > Evaluate**: pick a staff user and open *Generated access
+   token*. It must contain `"aud": [..."mailmerge-api"...]`, `"resource_access": {"mailmerge": {"roles":
+   ["mailmerge-user"]}}` and `"groups": ["/mailmerge/max-wilson"]`. Then Evaluate the same user on another client
+   (e.g. `coffee-journal`): that token must **not** contain `mailmerge-api` or a `groups` claim.
+7. **Realm settings** (these affect every app in the realm, so check rather than change): **Security defences >
    Brute force detection** should be on, so repeated wrong passwords lock the account for a while.
 
 Someone in two shop groups can use both; the app uses the first alphabetically.
+
+Tokens issued to `mailmerge` still carry `aud: account` (from Keycloak's default `roles` scope), which APIs that
+validate `aud: account` would accept. They stay server-side in the BFF, so the browser never sees them; the
+robust fix is for each of your APIs to validate its own audience, as MailMerge does.
 
 ## 2. Microsoft (Entra) app (once, reusable for every shop)
 
