@@ -38,7 +38,15 @@ public static class HostingExtensions
             .SetApplicationName("mailmerge")
             .PersistKeysToDbContext<MailMergeDbContext>();
 
-        AddAuth(services);
+        if (DevelopmentAuthentication.IsEnabled(builder.Environment, builder.Configuration))
+        {
+            DevelopmentAuthentication.Add(builder);
+            AddAuthorization(services);
+        }
+        else
+        {
+            AddAuth(services);
+        }
 
         services.AddScoped<CurrentUser>();
         services.AddSingleton<WorkspaceDirectory>();
@@ -70,6 +78,11 @@ public static class HostingExtensions
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
+        if (DevelopmentAuthentication.IsEnabled(app.Environment, app.Configuration))
+        {
+            app.Logger.LogWarning("DEVELOPMENT SIGN-IN IS ON: every request is treated as a signed-in staff member");
+        }
+
         app.UseAuthentication();
         app.UseAuthorization();
 
@@ -96,6 +109,11 @@ public static class HostingExtensions
                 jwt.TokenValidationParameters.NameClaimType = "preferred_username";
             });
 
+        AddAuthorization(services);
+    }
+
+    private static void AddAuthorization(IServiceCollection services)
+    {
         services.AddSingleton<IAuthorizationHandler, MailMergeRoleHandler>();
         services.AddAuthorizationBuilder()
             .AddPolicy(MailMergeAuthorization.Policy, policy => policy
