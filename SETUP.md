@@ -45,6 +45,10 @@ staff member would carry `aud: mailmerge`. Nothing adds `mailmerge-api` except t
    **Role mapping > Assign role**, filter by client roles and assign `mailmerge` `mailmerge-user`. Subgroups
    inherit it, so adding someone to their shop's group is all it takes. Never add `mailmerge-user` to the realm's
    default roles.
+   - Name the child group just `max-wilson` (Keycloak builds the path from the parent), so the token shows
+     `/mailmerge/max-wilson`. Naming it `mailmerge/max-wilson` gives `/mailmerge/mailmerge/max-wilson`.
+   - A shop's data is tied to its **full group path**. Don't rename or move a shop's group once it's in use: the
+     new path becomes a new, empty workspace. Change the shop's display name in the app instead.
 5. **Users:** create each staff member (or reuse an existing account) and **Join group** for their shop. Add
    yourself too if you want to help them inside the app.
 6. **Verify** with **Clients > mailmerge > Client scopes > Evaluate**: pick a staff user and open *Generated access
