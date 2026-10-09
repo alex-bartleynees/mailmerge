@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MailMerge</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1f2328;--mute:#6b7280;--line:#e3e1db;--brand:#1f6f5c;--brand-ink:#fff;--bad:#b42318;--badbg:#fdecea;--warn:#8a5a00;--warnbg:#fff4d6;--ok:#14663f;--okbg:#e3f5ea;--radius:10px}
+@media (prefers-color-scheme:dark){:root{--bg:#16181a;--card:#1f2326;--ink:#e8eaec;--mute:#9aa3ab;--line:#33393e;--brand:#3fa88e;--brand-ink:#0b1512;--bad:#ff8f84;--badbg:#3a1f1c;--warn:#f0c36a;--warnbg:#3a2f14;--ok:#7bd8a4;--okbg:#17301f}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar{max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0;letter-spacing:.2px}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:none;border:0;padding:8px 14px;border-radius:8px;font:inherit;color:var(--mute);cursor:pointer}
+nav button.on{background:var(--brand);color:var(--brand-ink)}
+main{max-width:1200px;margin:0 auto;padding:18px 16px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+h2{font-size:17px;margin:0 0 10px}h3{font-size:15px;margin:14px 0 6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1}.right{margin-left:auto}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 3px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input[type=checkbox]{width:auto}
+textarea{min-height:90px;resize:vertical}
+button.btn{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.btn:hover{border-color:var(--brand)}
+button.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.mute{color:var(--mute)}.small{font-size:13px}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;background:var(--bg);border:1px solid var(--line)}
+.pill.ok{background:var(--okbg);color:var(--ok);border-color:transparent}.pill.bad{background:var(--badbg);color:var(--bad);border-color:transparent}.pill.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.note{padding:10px 12px;border-radius:8px;background:var(--warnbg);color:var(--warn);margin:10px 0}
+.note.bad{background:var(--badbg);color:var(--bad)}.note.ok{background:var(--okbg);color:var(--ok)}
+.gridwrap{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:0;text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--mute);padding:8px;z-index:1}
+td input{border:0;border-radius:0;background:transparent;min-width:130px;padding:7px 8px}
+td input:focus{background:var(--bg);outline:2px solid var(--brand);outline-offset:-2px}
+td.pad{padding:6px 8px}
+tr.off td input{opacity:.45}
+td input.badv{background:var(--badbg);color:var(--bad)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chip{border:1px dashed var(--brand);color:var(--brand);background:none;border-radius:99px;padding:2px 10px;font-size:13px;cursor:pointer}
+.tools{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}.tools button{padding:4px 10px}
+#editor{min-height:220px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);overflow:auto}
+.bodybox textarea{min-height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+.bar-progress{height:10px;border-radius:99px;background:var(--line);overflow:hidden;display:flex}
+.bar-progress i{display:block;height:100%}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto;z-index:20}
+.modal.hidden{display:none}.box{background:var(--card);border-radius:12px;padding:20px;max-width:900px;width:100%;border:1px solid var(--line)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:8px;align-items:center}
+#toast div{background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#toast div.bad{background:var(--bad);color:#fff}
+iframe{width:100%;height:320px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.stat{padding:8px 14px;border-radius:8px;background:var(--bg);border:1px solid var(--line);text-align:center;min-width:84px}
+.stat b{display:block;font-size:20px}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.cols2{grid-template-columns:1fr}}
+code{background:var(--bg);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header><div class="bar"><h1>✉ MailMerge</h1>
+<nav id="tabs"></nav></div></header>
+<main id="app"></main>
+<div id="modal" class="modal hidden"><div class="box" id="box"></div></div>
+<div id="toast"></div>
+
+<script>
+const $=(s,el=document)=>el.querySelector(s), $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(method,url,body,form){
+  const o={method,headers:{}};
+  if(form)o.body=form; else if(body!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}
+  const r=await fetch(url,o);
+  if(!r.ok){let m=r.statusText;try{m=(await r.json()).error||m}catch{}throw new Error(m)}
+  return (r.headers.get('content-type')||'').includes('json')?r.json():null;
+}
+function toast(msg,bad){const d=document.createElement('div');d.textContent=msg;if(bad)d.className='bad';$('#toast').append(d);setTimeout(()=>d.remove(),bad?6000:2800)}
+const guard=fn=>async(...a)=>{try{return await fn(...a)}catch(e){toast(e.message,true)}};
+function modal(html){$('#box').innerHTML=html;$('#modal').classList.remove('hidden')}
+function closeModal(){$('#modal').classList.add('hidden');$('#box').innerHTML=''}
+$('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal()});
+const fmtSize=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
+
+const TABS=[['emails','Emails'],['contacts','Contacts'],['accounts','Accounts'],['optouts','Opt-outs']];
+let tab=location.hash.slice(1)||'emails', poller=null;
+function nav(t){tab=t;location.hash=t;clearInterval(poller);poller=null;draw()}
+function draw(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
+  $$('#tabs button').forEach(b=>b.onclick=()=>nav(b.dataset.t));
+  ({emails:viewEmails,contacts:viewContacts,accounts:viewAccounts,optouts:viewOptouts})[tab]().catch(e=>toast(e.message,true));
+}
+
+/* ============================================================ ACCOUNTS */
+async function viewAccounts(){
+  const [ps,info]=await Promise.all([api('GET','/api/profiles'),api('GET','/api/info')]);
+  $('#app').innerHTML=`
+  <div class="card"><h2>Sending accounts</h2>
+   <p class="mute small">An account is the mailbox your emails are sent from. Emails created here appear in that mailbox's <b>Drafts</b> and <b>Sent</b> folders, just like normal Outlook email.</p>
+   ${ps.length?ps.map(p=>`<div class="card" data-id="${p.id}">
+      <div class="row"><b>${esc(p.name)}</b>
+       <span class="pill">${{graph:'Outlook / Microsoft 365',smtp:'Other email (SMTP)',dryrun:'Test mode'}[p.kind]}</span>
+       ${p.kind==='graph'?(p.signed_in_as?`<span class="pill ok">Signed in as ${esc(p.signed_in_as)}</span>`:'<span class="pill warn">Not signed in</span>'):''}
+       <span class="right row">
+        ${p.kind==='graph'?`<button class="btn primary" data-a="login">${p.signed_in_as?'Sign in again':'Sign in'}</button>`:''}
+        <button class="btn" data-a="check">Test connection</button>
+        <button class="btn" data-a="edit">Edit</button>
+        <button class="btn danger" data-a="del">Remove</button></span></div>
+      <div class="small mute">From: ${esc(p.from_email||'(set after sign-in)')} · up to ${p.per_minute} emails/minute</div>
+      <div class="result"></div></div>`).join(''):'<div class="note">No accounts yet. Add one below to get started.</div>'}
+   <div class="row"><button class="btn primary" id="addAcct">+ Add account</button></div>
+  </div>`;
+  $('#addAcct').onclick=()=>acctForm(null,info);
+  $$('[data-id]').forEach(el=>{const p=ps.find(x=>x.id==el.dataset.id);
+    el.onclick=guard(async e=>{const a=e.target.dataset.a;if(!a)return;const res=$('.result',el);
+      if(a==='edit')return acctForm(p,info);
+      if(a==='del'){if(confirm(`Remove "${p.name}"? Emails already sent stay in the mailbox.`)){await api('DELETE','/api/profiles/'+p.id);viewAccounts()}return}
+      if(a==='check'){res.innerHTML='<div class="note">Checking…</div>';const r=await api('POST',`/api/profiles/${p.id}/check`);res.innerHTML=`<div class="note ${r.ok?'ok':'bad'}">${esc(r.message)}</div>`}
+      if(a==='login'){const st=await api('POST',`/api/profiles/${p.id}/login`);
+        res.innerHTML=`<div class="note"><b>1.</b> <a class="btn" href="${esc(st.url)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">Open the Microsoft sign-in page</a><br><b>2.</b> Type this code when it asks: <b style="font-size:22px;letter-spacing:3px">${esc(st.user_code)}</b><br><b>3.</b> Sign in with the shop's Outlook email and click <b>Accept</b>. This page updates by itself.<br><span class="small">If it says <i>“Need admin approval”</i>, the shop owner (whoever manages the Microsoft 365 account) should do these steps first, and tick <i>“Consent on behalf of your organization”</i> if shown.</span></div>`;
+        const t=setInterval(async()=>{try{const s=await api('GET',`/api/profiles/${p.id}/login`);
+          if(s.status==='connected'){clearInterval(t);toast('Signed in');viewAccounts()}
+          if(s.status==='error'){clearInterval(t);res.innerHTML=`<div class="note bad">${esc(s.error)}</div>`}}catch{clearInterval(t)}},2500)}
+    })});
+}
+function acctForm(p,info){
+  const c=p?.config||{};const kind=p?.kind||'graph';
+  modal(`<h2>${p?'Edit':'Add'} account</h2>
+  <label>Name (for your reference)</label><input id="f_name" value="${esc(p?.name||'')}" placeholder="e.g. Sales mailbox">
+  <label>Type</label><select id="f_kind" ${p?'disabled':''}>
+    <option value="graph">Outlook / Microsoft 365 (this is the one for Outlook email)</option>
+    <option value="smtp">Any other email (Gmail, your own domain…)</option>
+    <option value="dryrun">Test mode (nothing is really sent)</option></select>
+  <div id="kindfields"></div>
+  <label>Emails per minute <span class="mute">(a gentle pace avoids spam filters; 20 is a good start)</span></label>
+  <input id="f_pm" type="number" min="1" max="120" value="${p?.per_minute||20}">
+  <div class="row" style="margin-top:16px"><button class="btn primary" id="save">Save</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+  $('#f_kind').value=kind;
+  const fields=()=>{const k=$('#f_kind').value;
+    $('#kindfields').innerHTML=k==='graph'?(info.default_client_id?`
+      <div class="note ok">That's all we need. After saving, click <b>Sign in</b> and sign in with the shop's Outlook email address.</div>
+      <input type="hidden" id="f_cid" value="${esc(c.client_id||'')}"><input type="hidden" id="f_ten" value="${esc(c.tenant||'')}">`:`
+      <div class="note">The app administrator hasn't set the Microsoft app ID on the server yet (see SETUP.md). Paste it here, or ask them to set <code>GRAPH_CLIENT_ID</code>.</div>
+      <label>Application (client) ID</label><input id="f_cid" value="${esc(c.client_id||'')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      <label>Directory (tenant): leave as <code>common</code> unless told otherwise</label><input id="f_ten" value="${esc(c.tenant||info.default_tenant||'common')}">`)
+    :k==='smtp'?`
+      <label>Your email address</label><input id="f_from" value="${esc(p?.from_email||'')}">
+      <label>Display name (optional)</label><input id="f_fname" value="${esc(c.from_name||'')}">
+      <div class="cols2"><div><label>SMTP server</label><input id="f_host" value="${esc(c.host||'')}" placeholder="smtp.example.com"></div>
+      <div><label>Port</label><input id="f_port" value="${esc(c.port||587)}"></div></div>
+      <label>Security</label><select id="f_sec"><option value="starttls">STARTTLS (587)</option><option value="ssl">SSL/TLS (465)</option><option value="none">None</option></select>
+      <div class="cols2"><div><label>Username</label><input id="f_user" value="${esc(c.user||p?.from_email||'')}"></div>
+      <div><label>Password / app password ${p?.has_password?'<span class="mute">(leave blank to keep)</span>':''}</label><input id="f_pw" type="password" autocomplete="new-password"></div></div>
+      <h3>Optional: IMAP (lets drafts and Sent copies appear in the mailbox)</h3>
+      <div class="cols2"><div><label>IMAP server</label><input id="f_ih" value="${esc(c.imap_host||'')}" placeholder="imap.example.com"></div>
+      <div><label>IMAP port</label><input id="f_ip" value="${esc(c.imap_port||993)}"></div></div>
+      <div class="cols2"><div><label>Drafts folder (blank = auto)</label><input id="f_df" value="${esc(c.drafts_folder||'')}"></div>
+      <div><label>Sent folder (blank = auto)</label><input id="f_sf" value="${esc(c.sent_folder||'')}"></div></div>`
+    :`<label>Pretend email address</label><input id="f_from" value="${esc(p?.from_email||'me@example.com')}">
+      <p class="mute small">Test mode saves each email as a file instead of sending it. Good for practising.</p>`;
+    if(k==='smtp')$('#f_sec').value=c.security||'starttls'};
+  $('#f_kind').onchange=fields;fields();
+  $('#save').onclick=guard(async()=>{const k=$('#f_kind').value;let config={},from=p?.from_email||'';
+    if(k==='graph')config={client_id:$('#f_cid').value.trim(),tenant:$('#f_ten').value.trim()||'common'};
+    if(k==='smtp'){from=$('#f_from').value.trim();config={from_name:$('#f_fname').value.trim(),host:$('#f_host').value.trim(),port:$('#f_port').value.trim(),security:$('#f_sec').value,user:$('#f_user').value.trim(),password:$('#f_pw').value,imap_host:$('#f_ih').value.trim(),imap_port:$('#f_ip').value.trim(),drafts_folder:$('#f_df').value.trim(),sent_folder:$('#f_sf').value.trim()}}
+    if(k==='dryrun')from=$('#f_from').value.trim();
+    const body={name:$('#f_name').value,kind:k,from_email:from,config,per_minute:+$('#f_pm').value||20};
+    await api(p?'PUT':'POST','/api/profiles'+(p?'/'+p.id:''),body);closeModal();viewAccounts()});
+}
+
+/* ============================================================ CONTACTS */
+let CT={lists:[],cur:null,data:null,q:''};
+async function viewContacts(){
+  CT.lists=await api('GET','/api/lists');
+  if(!CT.cur||!CT.lists.find(l=>l.id===CT.cur))CT.cur=CT.lists[0]?.id??null;
+  $('#app').innerHTML=`<div class="card"><div class="row">
+    <h2 style="margin:0">Contact lists</h2>
+    <select id="listSel" style="width:auto;min-width:220px">${CT.lists.map(l=>`<option value="${l.id}" ${l.id===CT.cur?'selected':''}>${esc(l.name)} (${l.count})</option>`).join('')||'<option>No lists yet</option>'}</select>
+    <button class="btn primary" id="imp">⬆ Upload Excel / CSV</button>
+    <button class="btn" id="newList">+ Blank list</button>
+    ${CT.cur?'<button class="btn" id="ren">Rename</button><button class="btn" id="exp">⬇ Download Excel</button><button class="btn danger" id="dl">Delete list</button>':''}
+  </div></div><div id="grid"></div>`;
+  $('#listSel').onchange=e=>{CT.cur=+e.target.value;viewContacts()};
+  $('#imp').onclick=()=>pickFile('.xlsx,.xlsm,.csv,.tsv,.txt',guard(importFlow));
+  $('#newList').onclick=guard(async()=>{const n=prompt('Name for the new list?');if(!n)return;const l=await api('POST','/api/lists',{name:n});CT.cur=l.id;viewContacts()});
+  if(CT.cur){
+    $('#ren').onclick=guard(async()=>{const n=prompt('New name?',CT.lists.find(l=>l.id===CT.cur).name);if(!n)return;await api('PUT','/api/lists/'+CT.cur,{name:n});viewContacts()});
+    $('#exp').onclick=()=>location.href=`/api/lists/${CT.cur}/export`;
+    $('#dl').onclick=guard(async()=>{if(confirm('Delete this whole list and its contacts? This cannot be undone.')){await api('DELETE','/api/lists/'+CT.cur);CT.cur=null;viewContacts()}});
+    await loadGrid();
+  }else $('#grid').innerHTML='<div class="note">Upload an Excel file of your clients to get started. The first row should be column headings (like Email, FirstName).</div>';
+}
+function pickFile(accept,cb){const i=document.createElement('input');i.type='file';i.accept=accept;i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
+async function loadGrid(){CT.data=await api('GET',`/api/lists/${CT.cur}/contacts`);drawGrid()}
+function drawGrid(){
+  const d=CT.data,cols=d.columns,q=CT.q.toLowerCase();
+  const all=d.contacts,list=q?all.filter(c=>Object.values(c.data).some(v=>String(v).toLowerCase().includes(q))):all;
+  const shown=list.slice(0,300),bad=all.filter(c=>!c.valid).length,off=all.filter(c=>c.skip||c.opted_out).length;
+  $('#grid').innerHTML=`<div class="card">
+   <div class="row" style="margin-bottom:10px"><b>${esc(d.name)}</b><span class="mute small">${all.length} contacts</span>
+    ${bad?`<span class="pill bad">${bad} invalid email${bad>1?'s':''}</span>`:''}${off?`<span class="pill warn">${off} won't be emailed</span>`:''}
+    <input id="q" placeholder="Search…" value="${esc(CT.q)}" style="width:200px;margin-left:auto">
+    <button class="btn" id="addCol">+ Column</button></div>
+   <div class="row" style="margin-bottom:10px"><input id="newEmail" placeholder="Add a person: email address" style="max-width:300px"><button class="btn primary" id="addRow">Add</button></div>
+   <div class="gridwrap"><table><thead><tr><th>Don't email</th>${cols.map(c=>`<th>${esc(c)} ${c==='Email'?'':`<a href="#" data-del="${esc(c)}" title="Remove column" class="mute" style="text-decoration:none">✕</a>`}</th>`).join('')}<th></th></tr></thead>
+   <tbody>${shown.map(c=>`<tr data-id="${c.id}" class="${c.skip||c.opted_out?'off':''}">
+     <td class="pad"><input type="checkbox" class="skip" ${c.skip||c.opted_out?'checked':''} ${c.opted_out?'disabled title="On the opt-out list"':''}></td>
+     ${cols.map(k=>`<td><input data-k="${esc(k)}" value="${esc(c.data[k]||'')}" class="${k==='Email'&&!c.valid?'badv':''}"></td>`).join('')}
+     <td class="pad"><button class="btn danger del" title="Delete row">✕</button></td></tr>`).join('')}</tbody></table></div>
+   ${list.length>shown.length?`<p class="mute small">Showing the first ${shown.length} of ${list.length}. Use search to find the rest.</p>`:''}
+   ${!all.length?'<p class="mute">No contacts yet.</p>':''}</div>`;
+  $('#q').oninput=debounce(e=>{CT.q=e.target.value;drawGrid();$('#q').focus();$('#q').setSelectionRange(CT.q.length,CT.q.length)},250);
+  $('#addCol').onclick=guard(async()=>{const n=prompt('Column name (e.g. Company, Suburb)?');if(!n)return;await api('POST',`/api/lists/${CT.cur}/columns`,{name:n});loadGrid()});
+  $$('[data-del]').forEach(a=>a.onclick=guard(async e=>{e.preventDefault();if(confirm(`Remove the "${a.dataset.del}" column from every contact?`)){await api('DELETE',`/api/lists/${CT.cur}/columns/${encodeURIComponent(a.dataset.del)}`);loadGrid()}}));
+  const add=guard(async()=>{const e=$('#newEmail').value.trim();if(!e)return;await api('POST',`/api/lists/${CT.cur}/contacts`,{data:{Email:e}});await loadGrid();toast('Added')});
+  $('#addRow').onclick=add;$('#newEmail').onkeydown=e=>e.key==='Enter'&&add();
+  $$('#grid tbody tr').forEach(tr=>{const id=tr.dataset.id,rec=all.find(c=>c.id==id);
+    const save=guard(async()=>{const data={};$$('input[data-k]',tr).forEach(i=>data[i.dataset.k]=i.value);
+      const r=await api('PUT','/api/contacts/'+id,{data,skip:$('.skip',tr).checked});Object.assign(rec,r);
+      tr.classList.toggle('off',r.skip||r.opted_out);$('input[data-k=Email]',tr).classList.toggle('badv',!r.valid)});
+    $$('input[data-k]',tr).forEach(i=>i.onchange=()=>save().catch(()=>0));
+    $('.skip',tr).onchange=save;
+    $('.del',tr).onclick=guard(async()=>{await api('DELETE','/api/contacts/'+id);CT.data.contacts=CT.data.contacts.filter(c=>c.id!=id);drawGrid()});
+  });
+}
+async function importFlow(file){
+  const fd=new FormData();fd.append('file',file);
+  toast('Reading '+file.name+'…');
+  showImport(await api('POST','/api/import/preview',undefined,fd));
+}
+function showImport(pv){
+  const hasLists=CT.lists.length>0;
+  modal(`<h2>Check your file</h2>
+   <p class="mute small">${esc(pv.filename||'')} · ${pv.row_count} rows found. The first row is used as column headings.</p>
+   <div class="cols2">
+    <div>${pv.sheets.length>1?`<label>Sheet</label><select id="sheet">${pv.sheets.map(s=>`<option ${s===pv.sheet?'selected':''}>${esc(s)}</option>`).join('')}</select>`:''}
+     <label>Which column has the email addresses?</label>
+     <select id="emailcol"><option value="">— choose —</option>${pv.headers.map(h=>`<option ${h===pv.email_column?'selected':''}>${esc(h)}</option>`).join('')}</select></div>
+    <div><label>Put these contacts in</label>
+     <select id="target"><option value="new">A new list</option>${CT.lists.map(l=>`<option value="${l.id}" ${hasLists&&l.id===CT.cur?'selected':''}>Add to: ${esc(l.name)}</option>`).join('')}</select>
+     <div id="newname"><label>New list name</label><input id="nn" value="${esc((pv.filename||'Imported list').replace(/\.[^.]+$/,''))}"></div>
+     <label><input type="checkbox" id="upd"> If someone is already in the list, update their details from this file</label></div></div>
+   ${pv.invalid_count?`<div class="note">${pv.invalid_count} row(s) in this column don't look like email addresses. They'll be imported so you can fix them, but won't be emailed until corrected.</div>`:''}
+   ${pv.blank_count?`<div class="note">${pv.blank_count} row(s) have no email and will be skipped.</div>`:''}
+   <h3>Preview</h3><div class="gridwrap" style="max-height:220px"><table><thead><tr>${pv.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+   <tbody>${pv.sample.map(r=>`<tr>${r.map(v=>`<td class="pad">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+   <div class="row" style="margin-top:16px"><button class="btn primary" id="go">Import</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+  const tgl=()=>$('#newname').style.display=$('#target').value==='new'?'':'none';
+  $('#target').onchange=tgl;tgl();
+  const s=$('#sheet');if(s)s.onchange=guard(async()=>showImport(await api('GET',`/api/import/${pv.token}?sheet=${encodeURIComponent(s.value)}`)));
+  $('#go').onclick=guard(async()=>{
+    const t=$('#target').value;
+    const r=await api('POST',`/api/import/${pv.token}/commit`,{sheet:pv.sheet,email_column:$('#emailcol').value,update_existing:$('#upd').checked,list_id:t==='new'?null:+t,new_list_name:$('#nn').value});
+    closeModal();CT.cur=r.list_id;await viewContacts();
+    toast(`Imported: ${r.added} added${r.updated?`, ${r.updated} updated`:''}${r.duplicates?`, ${r.duplicates} already there`:''}${r.no_email?`, ${r.no_email} without email skipped`:''}`)});
+}
+
+/* ============================================================ OPT-OUTS */
+async function viewOptouts(){
+  const rows=await api('GET','/api/suppressions');
+  $('#app').innerHTML=`<div class="card"><h2>Opt-outs (never email these people)</h2>
+   <p class="mute small">Anyone listed here is skipped in every email you send, across all lists. Add people who ask to be taken off.</p>
+   <textarea id="em" placeholder="One or more email addresses (separated by new lines or commas)"></textarea>
+   <div class="row" style="margin-top:8px"><button class="btn primary" id="add">Add to opt-out list</button></div></div>
+   <div class="card"><b>${rows.length}</b> opted out
+   <table style="margin-top:8px"><tbody>${rows.map(r=>`<tr><td class="pad">${esc(r.email)}</td><td class="pad mute small">${esc((r.added||'').slice(0,10))}</td><td class="pad"><button class="btn" data-e="${esc(r.email)}">Remove</button></td></tr>`).join('')}</tbody></table></div>`;
+  $('#add').onclick=guard(async()=>{const r=await api('POST','/api/suppressions',{emails:$('#em').value});toast(r.added+' added');viewOptouts()});
+  $$('[data-e]').forEach(b=>b.onclick=guard(async()=>{await api('DELETE','/api/suppressions/'+encodeURIComponent(b.dataset.e));viewOptouts()}));
+}
+
+/* ============================================================ EMAILS (campaigns) */
+let EM={cur:null};
+async function checklist(cs){
+  const [ps,ls]=await Promise.all([api('GET','/api/profiles'),api('GET','/api/lists')]);
+  const steps=[[ps.length>0,'Connect your Outlook mailbox','accounts','Go to Accounts'],[ls.some(l=>l.count>0),'Upload your clients from Excel','contacts','Go to Contacts'],[cs.length>0,'Write your first email','emails',null]];
+  if(steps.every(x=>x[0]))return '';
+  return `<div class="card"><h2>Getting started</h2>${steps.map(([done,t,tb,btn],i)=>`<div class="row" style="margin:6px 0"><span class="pill ${done?'ok':''}">${done?'✓':i+1}</span><span class="${done?'mute':''}">${t}</span>${!done&&btn?`<button class="btn right" onclick="nav('${tb}')">${btn}</button>`:''}</div>`).join('')}</div>`}
+async function viewEmails(){
+  const cs=await api('GET','/api/campaigns');
+  if(EM.cur&&!cs.find(c=>c.id===EM.cur))EM.cur=null;
+  if(EM.cur)return editEmail(EM.cur);
+  const gs=await checklist(cs);
+  $('#app').innerHTML=`${gs}<div class="card"><div class="row"><h2 style="margin:0">Your emails</h2><button class="btn primary right" id="new">+ New email</button></div></div>
+   ${cs.map(c=>`<div class="card"><div class="row"><b>${esc(c.name)}</b>${statusPill(c)}
+     <span class="mute small">${c.counts.total?`${c.counts.sent||0} sent · ${c.counts.drafted||0} drafts · ${c.counts.failed||0} failed`:'Not started'}</span>
+     <span class="right row"><button class="btn" data-open="${c.id}">Open</button></span></div></div>`).join('')||'<div class="note">No emails yet. Click “New email”.</div>'}`;
+  $('#new').onclick=guard(async()=>{const n=prompt('Name this email (only you see this)?','Newsletter');if(!n)return;const c=await api('POST','/api/campaigns',{name:n});EM.cur=c.id;viewEmails()});
+  $$('[data-open]').forEach(b=>b.onclick=()=>{EM.cur=+b.dataset.open;viewEmails()});
+}
+const statusPill=c=>({running:'<span class="pill ok">Sending…</span>',paused:'<span class="pill warn">Paused</span>',done:'<span class="pill ok">Finished</span>',idle:'<span class="pill">Draft</span>'}[c.status]||'');
+
+async function editEmail(id){
+  const [c,profiles,lists]=await Promise.all([api('GET','/api/campaigns/'+id),api('GET','/api/profiles'),api('GET','/api/lists')]);
+  const list=lists.find(l=>l.id===c.list_id), locked=c.status==='running';
+  const prof=profiles.find(p=>p.id===c.profile_id);
+  $('#app').innerHTML=`
+  <div class="row" style="margin-bottom:12px"><button class="btn" id="back">← All emails</button><h2 style="margin:0">${esc(c.name)}</h2>${statusPill(c)}<span id="saved" class="mute small"></span>
+   <button class="btn danger right" id="del">Delete</button></div>
+  ${locked?'<div class="note">This email is sending. Pause it to make changes.</div>':''}
+  <div class="card"><h2>1 · Who and from where</h2><div class="cols2">
+   <div><label>Send from</label><select id="profile" ${locked?'disabled':''}>${profiles.map(p=>`<option value="${p.id}" ${p.id===c.profile_id?'selected':''}>${esc(p.name)} ${p.from_email?'('+esc(p.from_email)+')':''}</option>`).join('')||'<option value="">No accounts. Add one in Accounts</option>'}</select></div>
+   <div><label>Send to</label><select id="list" ${locked?'disabled':''}>${lists.map(l=>`<option value="${l.id}" ${l.id===c.list_id?'selected':''}>${esc(l.name)} (${l.count} people)</option>`).join('')||'<option value="">No lists. Upload one in Contacts</option>'}</select></div></div></div>
+  <div class="card"><h2>2 · Write it</h2>
+   <label>Subject</label><input id="subject" value="${esc(c.subject)}" placeholder="e.g. Hi {{FirstName|there}}, your update" ${locked?'disabled':''}>
+   <div class="chips" id="chips"><span class="mute small" style="align-self:center">Insert a column:</span>${(list?.columns||[]).map(k=>`<button class="chip" data-f="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+   <div class="row"><label style="margin:10px 0 3px">Message</label>
+    <select id="fmt" style="width:auto;margin-left:auto" ${locked?'disabled':''}><option value="0">Plain text</option><option value="1">Formatted (bold, links, lists)</option></select></div>
+   <div class="bodybox"><div id="tools" class="tools" style="display:none">
+     <button class="btn" data-cmd="bold"><b>B</b></button><button class="btn" data-cmd="italic"><i>I</i></button><button class="btn" data-cmd="underline"><u>U</u></button>
+     <button class="btn" data-cmd="insertUnorderedList">• List</button><button class="btn" data-cmd="createLink">Link</button><button class="btn" data-cmd="removeFormat">Clear</button></div>
+    <textarea id="plain" ${locked?'disabled':''}></textarea><div id="editor" contenteditable="${!locked}" style="display:none"></div></div>
+   <p class="mute small">Tip: <code>{{FirstName}}</code> is replaced for each person. <code>{{FirstName|there}}</code> uses “there” if the cell is empty. Outlook's saved signature isn't added automatically, so type or paste yours at the bottom.</p>
+   <h3>Attachments</h3><div id="atts">${c.attachments.map(a=>`<div class="row small"><span>📎 ${esc(a.filename)} <span class="mute">(${fmtSize(a.size)})</span></span>${locked?'':`<button class="btn danger" data-a="${a.id}">Remove</button>`}</div>`).join('')||'<span class="mute small">None. Attachments go to every recipient.</span>'}</div>
+   ${locked?'':'<div style="margin-top:8px"><button class="btn" id="addAtt">+ Attach a file</button></div>'}</div>
+  <div class="card"><h2>3 · Check it</h2><div class="row"><button class="btn" id="prev">👁 Preview with real contact details</button>
+   <input id="testTo" placeholder="Your email for a test" value="${esc(prof?.from_email||'')}" style="max-width:260px"><button class="btn" id="test">Send me a test</button></div></div>
+  <div class="card" id="runcard"></div>`;
+
+  // --- body editor wiring
+  const plain=$('#plain'),ed=$('#editor'),fmt=$('#fmt'),tools=$('#tools');
+  let isHtml=c.is_html; fmt.value=isHtml?'1':'0';
+  const showMode=()=>{plain.style.display=isHtml?'none':'';ed.style.display=isHtml?'':'none';tools.style.display=isHtml&&!locked?'flex':'none'};
+  if(isHtml)ed.innerHTML=c.body;else plain.value=c.body;showMode();
+  const getBody=()=>isHtml?ed.innerHTML:plain.value;
+  const save=debounce(guard(async()=>{await api('PUT','/api/campaigns/'+id,{subject:$('#subject').value,body:getBody(),is_html:isHtml,profile_id:+$('#profile').value||null,list_id:+$('#list').value||null});$('#saved').textContent='Saved';refreshPlan()}),700);
+  const dirty=()=>{$('#saved').textContent='Saving…';save()};
+  ['subject'].forEach(i=>$('#'+i).oninput=dirty);plain.oninput=dirty;ed.oninput=dirty;
+  $('#profile').onchange=guard(async()=>{await api('PUT','/api/campaigns/'+id,{profile_id:+$('#profile').value});editEmail(id)});
+  $('#list').onchange=guard(async()=>{await api('PUT','/api/campaigns/'+id,{list_id:+$('#list').value});editEmail(id)});
+  fmt.onchange=()=>{const want=fmt.value==='1';if(want===isHtml)return;
+    if(want){ed.innerHTML=esc(plain.value).replace(/\n/g,'<br>')}else{const t=document.createElement('div');t.innerHTML=ed.innerHTML.replace(/<br\s*\/?>|<\/(p|div|li)>/gi,'\n');plain.value=t.textContent.replace(/\n{3,}/g,'\n\n').trim()}
+    isHtml=want;showMode();dirty()};
+  $$('[data-cmd]').forEach(b=>b.onmousedown=e=>{e.preventDefault();const cmd=b.dataset.cmd;if(cmd==='createLink'){const u=prompt('Link address (https://…)');if(u)document.execCommand(cmd,false,u)}else document.execCommand(cmd);dirty()});
+  let lastFocus='plain';['subject','plain','editor'].forEach(i=>$('#'+i).addEventListener('focus',()=>lastFocus=i));
+  $$('.chip').forEach(b=>b.onmousedown=e=>{e.preventDefault();const tag=`{{${b.dataset.f}}}`;
+    const target=lastFocus==='subject'?$('#subject'):(isHtml?ed:plain);
+    if(target===ed){ed.focus();document.execCommand('insertText',false,tag)}
+    else{target.focus();const s=target.selectionStart??target.value.length;target.setRangeText(tag,s,target.selectionEnd??s,'end')}dirty()});
+  $('#back').onclick=()=>{EM.cur=null;clearInterval(poller);viewEmails()};
+  $('#del').onclick=guard(async()=>{if(confirm('Delete this email? Sent messages stay in the mailbox.')){await api('DELETE','/api/campaigns/'+id);EM.cur=null;viewEmails()}});
+  const addAtt=$('#addAtt');if(addAtt)addAtt.onclick=()=>pickFile('*/*',guard(async f=>{const fd=new FormData();fd.append('file',f);toast('Uploading…');await api('POST',`/api/campaigns/${id}/attachments`,undefined,fd);editEmail(id)}));
+  $$('[data-a]').forEach(b=>b.onclick=guard(async()=>{await api('DELETE','/api/attachments/'+b.dataset.a);editEmail(id)}));
+  $('#prev').onclick=guard(async()=>{await save.flush?.();await api('PUT','/api/campaigns/'+id,{subject:$('#subject').value,body:getBody(),is_html:isHtml}).catch(()=>0);showPreview(id)});
+  $('#test').onclick=guard(async()=>{await api('PUT','/api/campaigns/'+id,{subject:$('#subject').value,body:getBody(),is_html:isHtml});const r=await api('POST',`/api/campaigns/${id}/test`,{to:$('#testTo').value});toast(r.message)});
+
+  // --- run card
+  async function refreshPlan(){
+    const cur=await api('GET','/api/campaigns/'+id);const plan=await api('GET',`/api/campaigns/${id}/plan`);
+    const n=cur.counts,tot=n.total||0,seg=(k,col)=>tot?`<i style="width:${(n[k]||0)/tot*100}%;background:${col}"></i>`:'';
+    const running=cur.status==='running';
+    $('#runcard').innerHTML=`<h2>4 · Create drafts or send</h2>
+     ${cur.note?`<div class="note bad">${esc(cur.note)}</div>`:''}
+     ${tot?`<div class="row" style="margin-bottom:8px">${[['sent','Sent'],['drafted','Drafts'],['pending','Waiting'],['failed','Failed'],['uncertain','Check'],['skipped','Skipped']].map(([k,l])=>`<div class="stat"><b>${n[k]||0}</b>${l}</div>`).join('')}</div>
+      <div class="bar-progress">${seg('sent','var(--ok)')}${seg('drafted','var(--brand)')}${seg('uncertain','var(--warn)')}${seg('failed','var(--bad)')}</div>`:''}
+     <div class="row" style="margin-top:12px">
+      ${running?`<button class="btn primary" id="pause">⏸ Pause</button>`:`
+       <button class="btn" id="mkdraft" ${plan.supports_drafts&&plan.to_draft?'':'disabled'} title="${plan.supports_drafts?'':'This account type can’t save drafts'}">📝 Create ${plan.to_draft||0} drafts in my mailbox</button>
+       <button class="btn primary" id="send" ${plan.to_send?'':'disabled'}>✉ Send ${plan.to_send||0} emails</button>`}
+      ${n.failed?`<button class="btn" id="retry">Retry ${n.failed} failed</button>`:''}
+      ${tot?`<a class="btn" href="/api/campaigns/${id}/log.csv" style="text-decoration:none">⬇ Download log</a><button class="btn" id="logbtn">View log</button>`:''}</div>
+     <p class="mute small">${plan.skipped?`${plan.skipped} contact(s) will be skipped (invalid, marked “don't email”, or opted out). `:''}${plan.already_sent?`${plan.already_sent} already sent. `:''}Drafts appear in the Drafts folder of <b>${esc(plan.from_email||plan.account||'the account')}</b> so you can read and edit them in Outlook; sending puts each email in <b>Sent</b>.</p><div id="log"></div>`;
+    if(running){$('#pause').onclick=guard(async()=>{await api('POST',`/api/campaigns/${id}/pause`);refreshPlan();editEmail(id)});if(!poller)poller=setInterval(()=>refreshPlan().catch(()=>0),2500)}
+    else if(poller){clearInterval(poller);poller=null;if(cur.status==='done')toast('Finished')}
+    const go=guard(async mode=>{await api('PUT','/api/campaigns/'+id,{subject:$('#subject').value,body:getBody(),is_html:isHtml,profile_id:+$('#profile').value,list_id:+$('#list').value});
+      const p=await api('GET',`/api/campaigns/${id}/plan`);
+      const msg=mode==='send'?`Send ${p.to_send} real emails from ${p.from_email||p.account}?\n\nThey go out one by one at ${'a gentle pace'} and can't be recalled. Tip: send yourself a test first.`
+        :`Create ${p.to_draft} drafts in ${p.from_email||p.account}'s Drafts folder?\n\nNothing is sent. You can review each one in Outlook.`;
+      if(!confirm(msg))return;await api('POST',`/api/campaigns/${id}/run`,{mode});editEmail(id)});
+    if($('#send'))$('#send').onclick=()=>go('send');if($('#mkdraft'))$('#mkdraft').onclick=()=>go('draft');
+    if($('#retry'))$('#retry').onclick=guard(async()=>{await api('POST',`/api/campaigns/${id}/retry-failed`);refreshPlan()});
+    if($('#logbtn'))$('#logbtn').onclick=guard(()=>showLog(id));
+  }
+  await refreshPlan();
+}
+async function showPreview(id,cid){
+  const r=await api('POST',`/api/campaigns/${id}/preview`,{contact_id:cid});
+  modal(`<div class="row"><h2 style="margin:0">Preview</h2><span class="mute small">${r.total?`Contact ${esc(r.to)}`:'No contacts in this list'}</span>
+   <span class="right row"><button class="btn" id="pv" ${r.prev_id?'':'disabled'}>←</button><button class="btn" id="nx" ${r.next_id?'':'disabled'}>→</button></span></div>
+   ${r.unknown_fields.length?`<div class="note bad">These {{fields}} aren't columns in your list and will be blank: ${r.unknown_fields.map(esc).join(', ')}</div>`:''}
+   ${r.empty_fields.length?`<div class="note">This contact has nothing in: ${r.empty_fields.map(esc).join(', ')}</div>`:''}
+   <label>To</label><div>${esc(r.to)}</div><label>Subject</label><div><b>${esc(r.subject)}</b></div><label>Message</label>
+   ${r.is_html?'<iframe sandbox id="fr"></iframe>':`<div style="white-space:pre-wrap;border:1px solid var(--line);border-radius:8px;padding:10px">${esc(r.body)}</div>`}
+   <div class="row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  if(r.is_html)$('#fr').srcdoc=r.body;
+  $('#pv').onclick=()=>showPreview(id,r.prev_id);$('#nx').onclick=()=>showPreview(id,r.next_id);
+}
+async function showLog(id){
+  const ms=await api('GET',`/api/campaigns/${id}/messages?limit=1000`);
+  const pill=s=>`<span class="pill ${s==='sent'?'ok':s==='failed'?'bad':s==='uncertain'||s==='skipped'?'warn':''}">${s}</span>`;
+  modal(`<h2>Log</h2><div class="gridwrap"><table><tbody>${ms.map(m=>`<tr><td class="pad">${esc(m.email)}</td><td class="pad">${pill(m.status)}</td><td class="pad small mute" style="white-space:normal">${esc(m.error||'')}</td>
+   <td class="pad">${m.status==='uncertain'?`<button class="btn" data-m="${m.id}" data-s="sent">Mark sent</button> <button class="btn" data-m="${m.id}" data-s="pending">Retry</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+   <div class="row" style="margin-top:14px"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  $$('[data-m]').forEach(b=>b.onclick=guard(async()=>{await api('POST',`/api/messages/${b.dataset.m}/mark`,{status:b.dataset.s});showLog(id)}));
+}
+
+draw();
+</script>
+</body>
+</html>
