@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MailMerge.Api/MailMerge.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MailMerge.IntegrationTests/MailMerge.IntegrationTests.csproj" />
+    <Project Path="tests/MailMerge.UnitTests/MailMerge.UnitTests.csproj" />
+  </Folder>
+</Solution>
