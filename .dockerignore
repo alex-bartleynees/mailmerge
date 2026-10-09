@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.direnv/
+.idea/
+legacy/
+tests/
+docs/
+deployment/
+*.md
+.env

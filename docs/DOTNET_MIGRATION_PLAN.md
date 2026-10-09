@@ -1,7 +1,29 @@
 # MailMerge: Python → .NET migration plan
 
-Status: proposal, 2026-10-10. Nothing in the Python version has been deployed or holds real data, so
-this is a rewrite with a behaviour inventory, not a data migration.
+Status: phases 0–7 implemented on branch `dotnet-migration` (2026-10-10). Phase 8 deployment files are
+written but not deployed; phase 9 (deleting `legacy/`) waits for a real-tenant test. Nothing in the Python
+version has been deployed or holds real data, so this is a rewrite with a behaviour inventory, not a data
+migration.
+
+## Implementation notes (deviations from the plan below)
+
+- Section 8 decisions were taken as recommended: portfolio-cluster, a dedicated `mailmerge` realm, the
+  vanilla UI behind the BFF, and Microsoft auth code + PKCE. Device-code fallback was **not** built.
+- Unsubscribe links are `/u/{token}`, not `/api/public/…`. The BFF demands a CSRF header on signed-in
+  `/api` POSTs, which would break the confirm button for a staff member testing their own email.
+- Retention settings live on `PUT /api/workspace` (with the shop name) rather than separate Privacy
+  endpoints.
+- Test mode keeps an in-memory outbox (viewable per account) instead of `.eml` files. It simulates
+  failures for `@bounce.invalid` and `@timeout.invalid` recipients.
+- Development-only sign-in (`Auth:Development:Enabled` in the Development environment) for running the
+  UI without Keycloak.
+- The shared authgateway-bff chart needs `OpenIdConnectOptions__AuthorityPath` templated before it can
+  use the `mailmerge` realm (see `deployment/bff/values-mailmerge.yaml`).
+- A user in several workspace groups gets the first alphabetically. The API accepts an `X-Workspace`
+  header, but the UI has no switcher yet.
+
+Remaining: real-tenant Microsoft sign-in and send, the image build with a `read:packages` token, the
+Keycloak realm and Entra app, deploying, then deleting `legacy/`.
 
 ## 1. Review of what exists
 

@@ -1,0 +1,22 @@
+# Copy into portfolio-cluster/components/applications/ and add to its kustomization.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mailmerge-api
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/alex-bartleynees/mailmerge.git
+      path: deployment/helm-charts/mailmerge-api
+      targetRevision: HEAD
+      helm:
+        valueFiles:
+          - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mailmerge
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

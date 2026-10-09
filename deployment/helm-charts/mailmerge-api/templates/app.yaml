@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mailmerge-api.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "mailmerge-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "mailmerge-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config.yaml") . | sha256sum }}
+      labels:
+        {{- include "mailmerge-api.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ConnectionStrings__MailMerge
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.connectionStringKey }}
+            - name: Microsoft__ClientId
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.microsoft.secretName }}
+                  key: {{ .Values.microsoft.clientIdKey }}
+                  optional: true
+            - name: Microsoft__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.microsoft.secretName }}
+                  key: {{ .Values.microsoft.clientSecretKey }}
+                  optional: true
+          envFrom:
+            - configMapRef:
+                name: {{ include "mailmerge-api.fullname" . }}-config
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # Read-only root filesystem: .NET still needs somewhere to write temp files (e.g. large form uploads).
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mailmerge-api.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "mailmerge-api.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "mailmerge-api.selectorLabels" . | nindent 4 }}

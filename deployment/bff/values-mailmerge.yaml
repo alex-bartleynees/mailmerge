@@ -1,0 +1,53 @@
+# App-specific values for the shared authgateway-bff chart. Copy into
+# authgateway-bff/deployment/helm-charts/authgateway-bff/values-mailmerge.yaml.
+#
+# The BFF is the only public entrypoint: it signs staff in with Keycloak (realm "mailmerge"), keeps tokens
+# server-side, enforces CSRF on /api writes, and proxies everything to the MailMerge API, which serves the UI,
+# the API and the public unsubscribe pages (/u/*).
+config:
+  openIdConnect:
+    clientId: "mailmerge"
+    # Needs a small chart change in authgateway-bff: its config.yaml doesn't template AuthorityPath yet, so every
+    # instance uses appsettings' "realms/production". Add:
+    #   OpenIdConnectOptions__AuthorityPath: {{ .Values.config.openIdConnect.authorityPath | default "realms/production" | quote }}
+    authorityPath: "realms/mailmerge"
+    redirectUri: "/"
+    oidcCookieSameSite: "Lax"
+    cookieExpireTimeSpanHours: 12
+
+  reverseProxy:
+    routes:
+      app-route:
+        clusterId: "mailmerge-api"
+        order: 100
+        match:
+          path: "/{**catch-all}"
+    clusters:
+      mailmerge-api:
+        destinations:
+          destination1:
+            address: "http://mailmerge-api.mailmerge.svc.cluster.local:8080/"
+
+keycloak:
+  secretName: "keycloak-auth"
+  clientSecretKey: "MAILMERGE_CLIENT_SECRET"
+  serverUrl: "https://identity.alexbartleynees.com"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Spreadsheets and attachments (the API caps uploads at 25 MB).
+    nginx.ingress.kubernetes.io/proxy-body-size: "30m"
+  hosts:
+    - host: mailmerge.alexbartleynees.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mailmerge-bff-tls
+      hosts:
+        - mailmerge.alexbartleynees.com

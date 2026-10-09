@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mailmerge-api.fullname" . }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "mailmerge-api.labels" . | nindent 4 }}
+data:
+  ASPNETCORE_URLS: "http://+:{{ .Values.service.port }}"
+  ConnectionStrings__OTLP_Endpoint: {{ .Values.config.otlpEndpoint | quote }}
+  App__PublicBaseUrl: {{ .Values.config.publicBaseUrl | quote }}
+  App__MaxUploadMegabytes: {{ .Values.config.maxUploadMegabytes | quote }}
+  Auth__Authority: {{ .Values.auth.authority | quote }}
+  Auth__Audience: {{ .Values.auth.audience | quote }}
+  Auth__RoleClientId: {{ .Values.auth.roleClientId | quote }}
+  Auth__RequiredRole: {{ .Values.auth.requiredRole | quote }}
+  Auth__WorkspaceGroupPrefix: {{ .Values.auth.workspaceGroupPrefix | quote }}
+  Microsoft__Tenant: {{ .Values.microsoft.tenant | quote }}

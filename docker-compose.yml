@@ -1,0 +1,77 @@
+# Full local stack, the same shape as production:
+#
+#   browser ──► mailmerge-bff (:5224) ──► mailmerge-api (:8080) ──► postgres
+#                    │                         └─► Microsoft Graph / SMTP
+#                    └─ Keycloak (hosted identity server, realm "mailmerge")
+#
+# The BFF is the reusable authgateway-bff image: it handles Keycloak login (/bff/*), keeps tokens server-side,
+# enforces CSRF, and proxies everything else to the API (which also serves the UI).
+#
+#   cp .env.example .env    # fill in the secrets
+#   docker compose up -d --build
+#   open http://localhost:5224
+#
+# Without Keycloak, run the API alone with development sign-in instead (see README).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: mailmerge
+      POSTGRES_PASSWORD: mailmerge
+      POSTGRES_DB: mailmerge
+    volumes:
+      - mailmerge-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailmerge"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  mailmerge-api:
+    build:
+      context: .
+      secrets:
+        - github_packages_token
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__MailMerge: "Host=postgres;Database=mailmerge;Username=mailmerge;Password=mailmerge"
+      App__PublicBaseUrl: "http://localhost:5224"
+      Auth__Authority: "https://identity.alexbartleynees.com/realms/mailmerge"
+      Auth__Audience: "mailmerge-api"
+      Microsoft__ClientId: ${MICROSOFT_CLIENT_ID:-}
+      Microsoft__ClientSecret: ${MICROSOFT_CLIENT_SECRET:-}
+
+  mailmerge-bff:
+    image: creativefree/product-feedback-bff:latest
+    depends_on: [redis, mailmerge-api]
+    ports:
+      - "5224:5224"
+    environment:
+      ASPNETCORE_URLS: "http://+:5224"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Redis__Host: "redis:6379"
+      KEYCLOAK_SERVER_URL: "https://identity.alexbartleynees.com"
+      OpenIdConnectOptions__AuthorityPath: "realms/mailmerge"
+      OpenIdConnectOptions__ClientId: "mailmerge"
+      OpenIdConnectOptions__ClientSecret: ${MAILMERGE_CLIENT_SECRET:-}
+      OpenIdConnectOptions__RedirectUri: "/"
+      OpenIdConnectOptions__RequireHttpsMetadata: "true"
+      OpenIdConnectOptions__RequireSecureCookies: "false"
+      # Everything goes to the API: /api/* with the user's token attached, /u/* (public unsubscribe) and the UI.
+      ReverseProxy__Routes__api-route__ClusterId: "mailmerge-api"
+      ReverseProxy__Routes__api-route__Match__Path: "/{**catch-all}"
+      ReverseProxy__Routes__api-route__Order: "100"
+      ReverseProxy__Clusters__mailmerge-api__Destinations__destination1__Address: "http://mailmerge-api:8080/"
+
+secrets:
+  github_packages_token:
+    environment: GITHUB_PACKAGES_TOKEN
+
+volumes:
+  mailmerge-db:
