@@ -60,7 +60,7 @@ jobs:
 
       - name: Generate build ID
         id: tag
-        run: echo "build_id=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "build_id=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
