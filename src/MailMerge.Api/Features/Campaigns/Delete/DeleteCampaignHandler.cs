@@ -10,21 +10,21 @@ public sealed class DeleteCampaignHandler(MailMergeDbContext db) : IHandler
 {
     public async Task<Result> Handle(long campaignId, CancellationToken ct)
     {
-        var status = await db.Campaigns.Where(c => c.Id == campaignId).Select(c => (CampaignStatus?)c.Status)
-            .SingleOrDefaultAsync(ct);
-        if (status is null)
+        var campaign = await db.Campaigns.SingleOrDefaultAsync(c => c.Id == campaignId, ct);
+        if (campaign is null)
         {
             return CampaignErrors.NotFound;
         }
 
-        if (status == CampaignStatus.Running)
+        var allowed = campaign.EnsureDeletable();
+        if (allowed.IsFailure)
         {
-            return CampaignErrors.RunningDelete;
+            return allowed;
         }
 
-        // Guarded on status so a run started in between isn't deleted mid-send.
-        var deleted = await db.Campaigns.Where(c => c.Id == campaignId && c.Status != CampaignStatus.Running)
-            .ExecuteDeleteAsync(ct);
-        return deleted == 0 ? Result.Failure(CampaignErrors.RunningDelete) : Result.Success();
+        // The xmin check means a run started in between makes this fail instead of deleting mid-send. Messages and
+        // attachments go with it (ON DELETE CASCADE).
+        db.Campaigns.Remove(campaign);
+        return await db.SaveOrConflictAsync(CampaignErrors.Changed, ct);
     }
 }

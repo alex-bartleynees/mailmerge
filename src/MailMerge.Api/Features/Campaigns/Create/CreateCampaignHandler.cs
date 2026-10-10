@@ -11,16 +11,10 @@ public sealed class CreateCampaignHandler(MailMergeDbContext db, CurrentUser use
     public async Task<CampaignDetails> Handle(CreateCampaignRequest request, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
-        var campaign = new Campaign
-        {
-            WorkspaceId = user.WorkspaceId,
-            Name = string.IsNullOrWhiteSpace(request.Name) ? "New email" : request.Name.Trim(),
-            IsHtml = true,
-            AccountId = await db.SendingAccounts.OrderBy(a => a.Id).Select(a => (long?)a.Id).FirstOrDefaultAsync(ct),
-            ListId = await db.ContactLists.OrderByDescending(l => l.Id).Select(l => (long?)l.Id).FirstOrDefaultAsync(ct),
-            Created = now,
-            LastActivityAt = now,
-        };
+        var campaign = Campaign.Create(user.WorkspaceId, string.IsNullOrWhiteSpace(request.Name) ? "New email" : request.Name.Trim(), now);
+        campaign.IsHtml = true;
+        campaign.AccountId = await db.SendingAccounts.OrderBy(a => a.Id).Select(a => (long?)a.Id).FirstOrDefaultAsync(ct);
+        campaign.ListId = await db.ContactLists.OrderByDescending(l => l.Id).Select(l => (long?)l.Id).FirstOrDefaultAsync(ct);
         db.Campaigns.Add(campaign);
         await db.SaveChangesAsync(ct);
         return (await CampaignDetails.LoadOneAsync(db, campaign.Id, ct))!;

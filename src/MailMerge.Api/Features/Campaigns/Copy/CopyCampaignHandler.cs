@@ -21,24 +21,7 @@ public sealed class CopyCampaignHandler(MailMergeDbContext db, CurrentUser user,
         }
 
         var now = clock.GetUtcNow();
-        var copy = new Campaign
-        {
-            WorkspaceId = user.WorkspaceId,
-            Name = source.Name.Length > 190 ? source.Name[..190] + " (copy)" : source.Name + " (copy)",
-            AccountId = source.AccountId,
-            ListId = source.ListId,
-            Subject = source.Subject,
-            Body = source.Body,
-            IsHtml = source.IsHtml,
-            UnsubscribeFooter = source.UnsubscribeFooter,
-            UnsubscribeMessage = source.UnsubscribeMessage,
-            IncludeBusinessFooter = source.IncludeBusinessFooter,
-            UseWorkspaceBusinessFooter = source.UseWorkspaceBusinessFooter,
-            BusinessFooter = source.BusinessFooter,
-            Filter = source.Filter,
-            Created = now,
-            LastActivityAt = now,
-        };
+        var copy = source.CopyAsNew(now);
         db.Campaigns.Add(copy);
         await db.SaveChangesAsync(ct);
 

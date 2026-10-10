@@ -16,14 +16,10 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
             return CampaignErrors.NotFound;
         }
 
-        if (campaign.Status == CampaignStatus.Running)
+        var editable = campaign.EnsureEditable();
+        if (editable.IsFailure)
         {
-            return CampaignErrors.RunningEdit;
-        }
-
-        if (campaign.IsArchived)
-        {
-            return CampaignErrors.Archived;
+            return editable.Error;
         }
 
         if (request.AccountId is { } accountId && !await db.SendingAccounts.AnyAsync(a => a.Id == accountId, ct))
@@ -77,7 +73,12 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
                 ? null
                 : filter with { Conditions = filter.Conditions.Select(c => c with { Column = c.Column.Trim() }).ToList() };
         }
-        await db.SaveChangesAsync(ct);
+        var saved = await db.SaveOrConflictAsync(CampaignErrors.Changed, ct);
+        if (saved.IsFailure)
+        {
+            return saved.Error;
+        }
+
 
         return (await CampaignDetails.LoadOneAsync(db, campaignId, ct))!;
     }

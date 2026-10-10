@@ -9,16 +9,16 @@ public sealed class RemoveAttachmentHandler(MailMergeDbContext db) : IHandler
 {
     public async Task<Result> Handle(long campaignId, long attachmentId, CancellationToken ct)
     {
-        var status = await db.Campaigns.Where(c => c.Id == campaignId).Select(c => (CampaignStatus?)c.Status)
-            .SingleOrDefaultAsync(ct);
-        if (status is null)
+        var campaign = await db.Campaigns.AsNoTracking().SingleOrDefaultAsync(c => c.Id == campaignId, ct);
+        if (campaign is null)
         {
             return CampaignErrors.NotFound;
         }
 
-        if (status == CampaignStatus.Running)
+        var editable = campaign.EnsureEditable();
+        if (editable.IsFailure)
         {
-            return CampaignErrors.RunningEdit;
+            return editable;
         }
 
         var deleted = await db.Attachments.Where(a => a.Id == attachmentId && a.CampaignId == campaignId)

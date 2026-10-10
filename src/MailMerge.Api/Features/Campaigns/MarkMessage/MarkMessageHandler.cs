@@ -7,34 +7,30 @@ namespace MailMerge.Api.Features.Campaigns.MarkMessage;
 
 public sealed class MarkMessageHandler(MailMergeDbContext db, TimeProvider clock) : IHandler
 {
-    public static readonly Error NotFound = Error.NotFound("Message.NotFound", "Message not found");
-
-    public static readonly Error NotUnresolved =
-        Error.Conflict("Message.NotUnresolved", "Only unresolved messages can be changed");
-
-    private static readonly MessageStatus[] Unresolved =
-        [MessageStatus.Uncertain, MessageStatus.Failed, MessageStatus.Skipped, MessageStatus.Pending];
-
     public async Task<Result> Handle(long campaignId, long messageId, MarkMessageRequest request, CancellationToken ct)
     {
         var message = await db.Messages.SingleOrDefaultAsync(m => m.Id == messageId && m.CampaignId == campaignId, ct);
         if (message is null)
         {
-            return NotFound;
-        }
-
-        if (!Unresolved.Contains(message.Status))
-        {
-            return NotUnresolved;
+            return CampaignErrors.MessageNotFound;
         }
 
         var now = clock.GetUtcNow();
-        message.Status = request.Status;
-        message.Error = request.Status == MessageStatus.Pending ? null : "Marked by you";
-        message.Updated = now;
-        await db.Campaigns.Where(c => c.Id == campaignId)
-            .ExecuteUpdateAsync(s => s.SetProperty(c => c.LastActivityAt, now), ct);
-        await db.SaveChangesAsync(ct);
-        return Result.Success();
+        var marked = message.Mark(request.Status, now);
+        if (marked.IsFailure)
+        {
+            return marked;
+        }
+
+        var saved = await db.SaveOrConflictAsync(CampaignErrors.MessageChanged, ct);
+        if (saved.IsSuccess)
+        {
+            // Restart the retention clock with a set-based update, like the worker does, rather than loading (and
+            // racing) the campaign row it may be updating.
+            await db.Campaigns.Where(c => c.Id == campaignId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.LastActivityAt, now), ct);
+        }
+
+        return saved;
     }
 }

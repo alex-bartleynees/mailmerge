@@ -41,8 +41,9 @@ public sealed record CampaignDetails(
         var retentionDays = rows.Count == 0
             ? 0
             : await db.Workspaces.Where(w => w.Id == rows[0].WorkspaceId).Select(w => w.RetentionDays).SingleAsync(ct);
+        var awaitingDecision = Message.AwaitingDecision.ToArray();
         var blocked = await db.Messages.AsNoTracking()
-            .Where(m => ids.Contains(m.CampaignId) && (m.Status == MessageStatus.Uncertain || m.Status == MessageStatus.Drafting || m.Status == MessageStatus.Sending))
+            .Where(m => ids.Contains(m.CampaignId) && awaitingDecision.Contains(m.Status))
             .Select(m => m.CampaignId).Distinct().ToListAsync(ct);
 
         var counts = await db.Messages.AsNoTracking()
@@ -59,7 +60,7 @@ public sealed record CampaignDetails(
         return rows.Select(c => new CampaignDetails(
                 c.Id, c.Name, c.AccountId, c.ListId, c.Subject, c.Body, c.IsHtml, c.Mode, c.Status, c.Note,
                 c.UnsubscribeFooter, c.Filter, c.Created, c.LastActivityAt, c.ArchivedAt,
-                c.IsArchived || c.Status == CampaignStatus.Running || blocked.Contains(c.Id) ? null : c.LastActivityAt.AddDays(retentionDays),
+                c.PurgesOn(retentionDays, blocked.Contains(c.Id)),
                 c.Summary ?? StatusCounts(counts.Where(x => x.CampaignId == c.Id).Select(x => (x.Status, x.Count))),
                 attachments.Where(a => a.CampaignId == c.Id).Select(a => a.View).ToList(), c.UnsubscribeMessage,
                 c.IncludeBusinessFooter, c.UseWorkspaceBusinessFooter, c.BusinessFooter))

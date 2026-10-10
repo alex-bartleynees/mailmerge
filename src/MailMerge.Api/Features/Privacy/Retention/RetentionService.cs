@@ -15,9 +15,6 @@ public sealed class RetentionService(IServiceScopeFactory scopes, TimeProvider c
     public static readonly TimeSpan Interval = TimeSpan.FromHours(6);
     public static readonly TimeSpan ImportLifetime = TimeSpan.FromHours(24);
 
-    private static readonly MessageStatus[] Unresolved =
-        [MessageStatus.Uncertain, MessageStatus.Drafting, MessageStatus.Sending];
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
@@ -54,48 +51,61 @@ public sealed class RetentionService(IServiceScopeFactory scopes, TimeProvider c
         await db.PendingMicrosoftSignIns.Where(s => s.Expires < now).ExecuteDeleteAsync(ct);
 
         var archived = 0;
+        var awaitingDecision = Message.AwaitingDecision.ToArray();
         var workspaces = await db.Workspaces.AsNoTracking().Select(w => new { w.Id, w.RetentionDays }).ToListAsync(ct);
         foreach (var workspace in workspaces)
         {
             var cutoff = now.AddDays(-workspace.RetentionDays);
-            var campaigns = db.Campaigns.IgnoreQueryFilters();
             var messages = db.Messages.IgnoreQueryFilters();
-            var eligible = await campaigns
+            // Narrow in SQL, then let the aggregate decide (Campaign.CanBeArchived is the rule).
+            var candidates = await db.Campaigns.IgnoreQueryFilters()
                 .Where(c => c.WorkspaceId == workspace.Id && c.ArchivedAt == null && c.Status != CampaignStatus.Running
-                            && c.LastActivityAt < cutoff
-                            && !messages.Any(m => m.CampaignId == c.Id && Unresolved.Contains(m.Status)))
-                .Select(c => c.Id)
+                            && c.LastActivityAt < cutoff)
                 .ToListAsync(ct);
+            var candidateIds = candidates.Select(c => c.Id).ToList();
+            var blocked = await messages
+                .Where(m => candidateIds.Contains(m.CampaignId) && awaitingDecision.Contains(m.Status))
+                .Select(m => m.CampaignId).Distinct().ToListAsync(ct);
+            var eligible = candidates
+                .Where(c => c.CanBeArchived(now, workspace.RetentionDays, blocked.Contains(c.Id)))
+                .ToList();
             if (eligible.Count == 0)
             {
                 continue;
             }
 
-            int purgedMessages = 0, purgedAttachments = 0;
-            foreach (var campaignId in eligible)
+            int archivedHere = 0, purgedMessages = 0, purgedAttachments = 0;
+            foreach (var campaign in eligible)
             {
+                var campaignId = campaign.Id;
                 await using var tx = await db.Database.BeginTransactionAsync(ct);
                 var counts = await messages.Where(m => m.CampaignId == campaignId)
                     .GroupBy(m => m.Status).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
                 var summary = CampaignDetails.StatusCounts(counts.Select(c => (c.Key, c.Count)));
 
-                purgedMessages += await messages.Where(m => m.CampaignId == campaignId).ExecuteDeleteAsync(ct);
-                purgedAttachments += await db.Attachments.IgnoreQueryFilters()
+                var deletedMessages = await messages.Where(m => m.CampaignId == campaignId).ExecuteDeleteAsync(ct);
+                var clearedAttachments = await db.Attachments.IgnoreQueryFilters()
                     .Where(a => a.CampaignId == campaignId && a.Content != null)
                     .ExecuteUpdateAsync(s => s.SetProperty(a => a.Content, (byte[]?)null), ct);
-                // Re-checks the conditions so a campaign started meanwhile is left alone.
-                var updated = await campaigns
-                    .Where(c => c.Id == campaignId && c.Status != CampaignStatus.Running && c.ArchivedAt == null)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(c => c.ArchivedAt, now)
-                        .SetProperty(c => c.Summary, summary)
-                        .SetProperty(c => c.Status, CampaignStatus.Done)
-                        .SetProperty(c => c.Note, (string?)null), ct);
-                if (updated == 1)
+                campaign.Archive(now, summary);
+
+                // If someone started this email meanwhile, its xmin changed: roll the whole purge back and leave it.
+                if ((await db.SaveOrConflictAsync(CampaignErrors.Changed, ct)).IsFailure)
                 {
-                    await tx.CommitAsync(ct);
-                    archived++;
+                    db.Entry(campaign).State = EntityState.Detached;
+                    continue;
                 }
+
+                await tx.CommitAsync(ct);
+                archived++;
+                archivedHere++;
+                purgedMessages += deletedMessages;
+                purgedAttachments += clearedAttachments;
+            }
+
+            if (archivedHere == 0)
+            {
+                continue;
             }
 
             db.PrivacyLog.Add(new PrivacyLogEntry
@@ -104,10 +114,10 @@ public sealed class RetentionService(IServiceScopeFactory scopes, TimeProvider c
                 Action = "retention_purge",
                 PerformedBy = "MailMerge (automatic)",
                 PerformedAt = now,
-                Counts = new() { ["campaigns"] = eligible.Count, ["messages"] = purgedMessages, ["attachments"] = purgedAttachments },
+                Counts = new() { ["campaigns"] = archivedHere, ["messages"] = purgedMessages, ["attachments"] = purgedAttachments },
             });
             await db.SaveChangesAsync(ct);
-            log.LogInformation("Retention archived {Campaigns} campaign(s) in workspace {WorkspaceId}", eligible.Count, workspace.Id);
+            log.LogInformation("Retention archived {Campaigns} campaign(s) in workspace {WorkspaceId}", archivedHere, workspace.Id);
         }
 
         return archived;

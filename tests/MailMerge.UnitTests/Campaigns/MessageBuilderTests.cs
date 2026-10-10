@@ -6,12 +6,21 @@ namespace MailMerge.UnitTests.Campaigns;
 
 public sealed class MessageBuilderTests
 {
+    private static Campaign News(bool isHtml)
+    {
+        var campaign = Campaign.Create(1, "News", DateTimeOffset.UnixEpoch);
+        campaign.Subject = "Hello";
+        campaign.Body = "Hi";
+        campaign.IsHtml = isHtml;
+        return campaign;
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void Business_footer_requires_opt_in_and_custom_content_overrides_the_default(bool isHtml)
     {
-        var campaign = new Campaign { Name = "News", Subject = "Hello", Body = "Hi", IsHtml = isHtml };
+        var campaign = News(isHtml);
         var workspace = new BusinessFooter("<b>Workspace business</b>", "https://example.com/logo.png");
         MessageBuilder.Body(campaign, new Dictionary<string, string>(), workspace, null).Should().Be("Hi");
 
@@ -45,11 +54,9 @@ public sealed class MessageBuilderTests
     public void Custom_footer_keeps_the_link_and_unsubscribe_headers(bool isHtml)
     {
         const string url = "https://example.com/u/token";
-        var campaign = new Campaign
-        {
-            Name = "News", Subject = "Hello", Body = "Hi", IsHtml = isHtml,
-            UnsubscribeFooter = true, UnsubscribeMessage = "Stop updates from A&B?\n<Leave>",
-        };
+        var campaign = News(isHtml);
+        campaign.UnsubscribeFooter = true;
+        campaign.UnsubscribeMessage = "Stop updates from A&B?\n<Leave>";
 
         var message = MessageBuilder.Build(campaign, new Dictionary<string, string>(), "ann@example.com", [], url);
 

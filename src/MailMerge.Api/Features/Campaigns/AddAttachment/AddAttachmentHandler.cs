@@ -21,14 +21,10 @@ public sealed class AddAttachmentHandler(MailMergeDbContext db, CurrentUser user
             return CampaignErrors.NotFound;
         }
 
-        if (campaign.Status == CampaignStatus.Running)
+        var editable = campaign.EnsureEditable();
+        if (editable.IsFailure)
         {
-            return CampaignErrors.RunningEdit;
-        }
-
-        if (campaign.IsArchived)
-        {
-            return CampaignErrors.Archived;
+            return editable.Error;
         }
 
         if (file is null || file.Length == 0)

@@ -8,19 +8,32 @@ namespace MailMerge.Api.Features.Campaigns.Pause;
 /// <summary>Stops after the message in flight, if any. Pausing something that isn't running is a no-op.</summary>
 public sealed class PauseCampaignHandler(MailMergeDbContext db, TimeProvider clock) : IHandler
 {
+    private const int Attempts = 3;
+
     public async Task<Result> Handle(long campaignId, CancellationToken ct)
     {
-        if (!await db.Campaigns.AnyAsync(c => c.Id == campaignId, ct))
+        // A running campaign is updated by the worker after every message, so a save can lose the race; reload and
+        // re-apply a few times rather than make staff press Pause again.
+        for (var attempt = 1; attempt <= Attempts; attempt++)
         {
-            return CampaignErrors.NotFound;
+            db.ChangeTracker.Clear();
+            var campaign = await db.Campaigns.SingleOrDefaultAsync(c => c.Id == campaignId, ct);
+            if (campaign is null)
+            {
+                return CampaignErrors.NotFound;
+            }
+
+            if (!campaign.Pause(clock.GetUtcNow()))
+            {
+                return Result.Success();
+            }
+
+            if ((await db.SaveOrConflictAsync(CampaignErrors.Changed, ct)).IsSuccess)
+            {
+                return Result.Success();
+            }
         }
 
-        var now = clock.GetUtcNow();
-        await db.Campaigns.Where(c => c.Id == campaignId && c.Status == CampaignStatus.Running)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(c => c.Status, CampaignStatus.Paused)
-                .SetProperty(c => c.Note, (string?)null)
-                .SetProperty(c => c.LastActivityAt, now), ct);
-        return Result.Success();
+        return CampaignErrors.Changed;
     }
 }

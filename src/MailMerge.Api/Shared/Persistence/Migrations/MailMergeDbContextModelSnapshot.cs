@@ -282,6 +282,12 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("use_workspace_business_footer");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<long>("WorkspaceId")
                         .HasColumnType("bigint")
                         .HasColumnName("workspace_id");
@@ -346,6 +352,12 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                     b.Property<DateTimeOffset>("Updated")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<long>("WorkspaceId")
                         .HasColumnType("bigint")

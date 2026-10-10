@@ -19,17 +19,18 @@ public sealed class RetryFailedHandler(MailMergeDbContext db, TimeProvider clock
             return CampaignErrors.NotFound;
         }
 
-        if (campaign.IsArchived)
+        var allowed = campaign.EnsureCanRequeue();
+        if (allowed.IsFailure)
         {
-            return CampaignErrors.Archived;
+            return allowed.Error;
         }
 
+        // The worker never touches failed rows, so this can't race it; Requeue holds the "failed only" rule.
         var now = clock.GetUtcNow();
-        var requeued = await db.Messages.Where(m => m.CampaignId == campaignId && m.Status == MessageStatus.Failed)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(m => m.Status, MessageStatus.Pending)
-                .SetProperty(m => m.Error, (string?)null)
-                .SetProperty(m => m.Updated, now), ct);
-        return new RetryFailedResponse(requeued);
+        var failed = await db.Messages.Where(m => m.CampaignId == campaignId && m.Status == MessageStatus.Failed)
+            .ToListAsync(ct);
+        var requeued = failed.Count(m => m.Requeue(now));
+        var saved = await db.SaveOrConflictAsync(CampaignErrors.MessageChanged, ct);
+        return saved.IsSuccess ? new RetryFailedResponse(requeued) : saved.Error;
     }
 }

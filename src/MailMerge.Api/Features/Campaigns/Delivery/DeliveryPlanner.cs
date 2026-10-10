@@ -49,6 +49,7 @@ public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOut
     /// <summary>
     /// Creates or refreshes one message row per contact. Rows already drafted, sent, failed or uncertain keep their
     /// status, so re-running after adding contacts only reaches the new people; skipped rows are re-evaluated.
+    /// Only tracks the changes: the caller saves them together with the campaign, in one conflict-checked save.
     /// </summary>
     public async Task MaterializeAsync(Campaign campaign, CancellationToken ct)
     {
@@ -60,35 +61,16 @@ public sealed class DeliveryPlanner(MailMergeDbContext db, OptOutRegistry optOut
         foreach (var contact in contacts)
         {
             var reason = SkipReason(contact, matcher.IsOptedOut(contact.Email), campaign.Filter);
-            var status = reason is null ? MessageStatus.Pending : MessageStatus.Skipped;
             if (existing.TryGetValue(contact.Email, out var message))
             {
-                message.ContactId = contact.Id;
-                if (message.Status == MessageStatus.Skipped)
-                {
-                    message.Status = status;
-                    message.Error = reason;
-                    message.Updated = now;
-                }
-
+                message.Reevaluate(contact.Id, reason, now);
                 continue;
             }
 
-            var created = new Message
-            {
-                WorkspaceId = campaign.WorkspaceId,
-                CampaignId = campaign.Id,
-                ContactId = contact.Id,
-                Email = contact.Email,
-                Status = status,
-                Error = reason,
-                Updated = now,
-            };
+            var created = Message.Create(campaign.WorkspaceId, campaign.Id, contact.Id, contact.Email, reason, now);
             db.Messages.Add(created);
             existing[contact.Email] = created;
         }
-
-        await db.SaveChangesAsync(ct);
     }
 
     public async Task<DeliveryPlan> PlanAsync(Campaign campaign, CancellationToken ct)

@@ -44,6 +44,20 @@ src/MailMerge.Api/
 Each operation folder holds `XRequest.cs` (record + FluentValidation validator), `XEndpoint.cs` (transport only),
 `XHandler.cs` (use case, returns `Result<T>`) and `XResponse.cs`. Shared models sit at the feature root.
 
+### Domain model
+
+Mostly plain vertical slices; DDD only where the rules live. `Campaign` is the aggregate root for an email's
+lifecycle and `Message` (one recipient) is a small aggregate of its own:
+
+- Status, mode, archive state and the retention clock have private setters and change only through methods that hold
+  the rules: `EnsureEditable`, `CanStart`/`Start`, `Pause`, `CopyAsNew`, `PurgesOn`/`CanBeArchived`/`Archive` on
+  `Campaign`; `Mark`, `Requeue`, `Reevaluate` on `Message`. Handlers load, call one method, save.
+- Both carry Postgres `xmin` as an optimistic-concurrency token, so a handler's save fails cleanly
+  (`SaveOrConflictAsync`) if the delivery worker changed the row meanwhile.
+- The worker deliberately keeps its conditional set-based updates (`UPDATE … WHERE status = `): they are
+  the no-double-send guarantee, and they bump `xmin` too.
+- Lists, contacts, imports and accounts stay simple CRUD slices with logic in the handler.
+
 ### Sending safety rules
 
 - Each person gets a separate email. Drafts are made first, then sent, and the draft id is saved as soon as the
