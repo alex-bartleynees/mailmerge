@@ -91,7 +91,8 @@ jobs:
       # Argo CD deploys whatever tag is committed here (pushes made with GITHUB_TOKEN don't re-trigger workflows).
       - name: Update values.yaml with build tag
         run: |
-          sed -i "s/^  tag: .*/  tag: ${{ steps.tag.outputs.build_id }}/" deployment/helm-charts/mailmerge-api/values.yaml
+          # Quote the SHA: tags such as 2730e53 otherwise parse as YAML numbers.
+          sed -i "s/^  tag: .*/  tag: \"${{ steps.tag.outputs.build_id }}\"/" deployment/helm-charts/mailmerge-api/values.yaml
           git add deployment/helm-charts/mailmerge-api/values.yaml
           git commit -m "Update image tag to ${{ steps.tag.outputs.build_id }}"
           git push origin main
