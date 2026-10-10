@@ -8,7 +8,8 @@ public sealed record CommitImportRequest(
     string EmailColumn,
     long? ListId,
     string? NewListName,
-    bool UpdateExisting);
+    bool UpdateExisting,
+    bool ReplaceBlankValues = false);
 
 internal sealed class CommitImportRequestValidator : AbstractValidator<CommitImportRequest>
 {

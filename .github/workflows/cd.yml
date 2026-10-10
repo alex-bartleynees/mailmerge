@@ -16,6 +16,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node for UI tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test recipient rule UI
+        run: |
+          npm ci --prefix tests/MailMerge.UiTests
+          npm test --prefix tests/MailMerge.UiTests
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

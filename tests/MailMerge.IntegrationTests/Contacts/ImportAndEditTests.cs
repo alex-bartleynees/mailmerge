@@ -185,4 +185,45 @@ public sealed class ImportAndEditTests(MailMergeApiFactory api)
         (await other.GetAsync($"/api/lists/{listId}/export")).StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await other.DeleteAsync($"/api/lists/{listId}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Theory]
+    [InlineData(false, "TRUE")]
+    [InlineData(true, "")]
+    public async Task Reimport_can_explicitly_clear_blank_sending_flags(bool replaceBlankValues, string expected)
+    {
+        var client = api.CreateStaffClient();
+        var list = await Scenario.CreateListAsync(client,
+            new Dictionary<string, string> { ["Email"] = "a@example.com", ["SEND_EMAIL"] = "TRUE" });
+        var bytes = TestData.Xlsx("S", ["Email", "SEND_EMAIL"], ["a@example.com", null]);
+        var preview = await (await client.PostAsync("/api/imports", TestData.File("flags.xlsx", bytes)))
+            .ReadAsync<ImportPreviewDto>();
+        await client.PostAsync<CommitImportDto>($"/api/imports/{preview.Token}/commit",
+            new { emailColumn = "Email", listId = list.Id, updateExisting = true, replaceBlankValues });
+
+        var contacts = await client.GetAsync<ListContactsDto>($"/api/lists/{list.Id}/contacts");
+        contacts.Contacts.Single().Data["SEND_EMAIL"].Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Headers_remain_distinct_after_removing_merge_characters()
+    {
+        var client = api.CreateStaffClient();
+        var bytes = TestData.Xlsx("S", ["Email", "RSVP", "{RSVP}", "RSVP (2)"],
+            ["a@example.com", "TRUE", "FALSE", "yes"]);
+        var preview = await (await client.PostAsync("/api/imports", TestData.File("headers.xlsx", bytes)))
+            .ReadAsync<ImportPreviewDto>();
+        var imported = await client.PostAsync<CommitImportDto>($"/api/imports/{preview.Token}/commit",
+            new { emailColumn = "Email", newListName = "Distinct headers" });
+        var contacts = await client.GetAsync<ListContactsDto>($"/api/lists/{imported.ListId}/contacts");
+        contacts.Columns.Should().HaveCount(4).And.OnlyHaveUniqueItems();
+        contacts.Contacts.Single().Data.Values.Should().BeEquivalentTo("a@example.com", "TRUE", "FALSE", "yes");
+
+        var again = await (await client.PostAsync("/api/imports", TestData.File("headers.xlsx", bytes)))
+            .ReadAsync<ImportPreviewDto>();
+        await client.PostAsync<CommitImportDto>($"/api/imports/{again.Token}/commit",
+            new { emailColumn = "Email", listId = imported.ListId, updateExisting = true });
+        var reimported = await client.GetAsync<ListContactsDto>($"/api/lists/{imported.ListId}/contacts");
+        reimported.Columns.Should().Equal(contacts.Columns);
+        reimported.Contacts.Single().Data.Should().BeEquivalentTo(contacts.Contacts.Single().Data);
+    }
 }

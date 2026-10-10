@@ -84,9 +84,9 @@ public sealed class CommitImportHandler(MailMergeDbContext db, CurrentUser user,
             {
                 if (request.UpdateExisting)
                 {
-                    // Blank cells in the file never wipe out data already in the list.
+                    // Only columns present in this file are updated; clearing blank cells is an explicit choice.
                     var merged = new Dictionary<string, string>(contact.Data);
-                    foreach (var (k, v) in record.Where(kv => kv.Value.Length > 0))
+                    foreach (var (k, v) in record.Where(kv => request.ReplaceBlankValues || kv.Value.Length > 0))
                     {
                         merged[k] = v;
                     }
@@ -130,6 +130,15 @@ public sealed class CommitImportHandler(MailMergeDbContext db, CurrentUser user,
         var columns = listColumns.ToList();
         var byLower = columns.ToDictionary(c => c.ToLowerInvariant(), c => c);
         var mapping = new string[headers.Count];
+        var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ContactList.EmailColumn };
+        // Reserve explicit names so a cleaned duplicate cannot steal a later header's name.
+        // Generated names are deterministic, allowing repeated imports to reuse the same columns.
+        var cleanHeaders = headers.Select((header, i) =>
+        {
+            var clean = new string(header.Where(ch => ch is not ('{' or '}' or '|')).ToArray()).Trim();
+            return clean.Length == 0 ? $"Column {i + 1}" : clean;
+        }).ToList();
+        var reserved = new HashSet<string>(cleanHeaders, StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < headers.Count; i++)
         {
             var header = headers[i];
@@ -140,17 +149,22 @@ public sealed class CommitImportHandler(MailMergeDbContext db, CurrentUser user,
             }
             else
             {
-                var clean = new string(header.Where(ch => ch is not ('{' or '}' or '|')).ToArray()).Trim();
-                if (clean.Length == 0)
-                {
-                    clean = $"Column {i + 1}";
-                }
+                var clean = cleanHeaders[i];
 
                 target = byLower.GetValueOrDefault(clean.ToLowerInvariant(), clean);
-                if (target == ContactList.EmailColumn)
+                if (assigned.Contains(target))
                 {
-                    target = $"{clean} (2)";
+                    for (var suffix = 2; ; suffix++)
+                    {
+                        target = $"{clean} ({suffix})";
+                        if (!reserved.Contains(target) && !assigned.Contains(target))
+                        {
+                            break;
+                        }
+                    }
+                    target = byLower.GetValueOrDefault(target.ToLowerInvariant(), target);
                 }
+                assigned.Add(target);
             }
 
             mapping[i] = target;

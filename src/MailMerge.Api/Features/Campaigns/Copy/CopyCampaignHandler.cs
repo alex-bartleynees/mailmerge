@@ -31,6 +31,7 @@ public sealed class CopyCampaignHandler(MailMergeDbContext db, CurrentUser user,
             Body = source.Body,
             IsHtml = source.IsHtml,
             UnsubscribeFooter = source.UnsubscribeFooter,
+            Filter = source.Filter,
             Created = now,
             LastActivityAt = now,
         };

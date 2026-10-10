@@ -25,6 +25,7 @@ public static class TestData
                 {
                     null => Blank.Value,
                     int i => i,
+                    bool b => b,
                     var v => v.ToString(),
                 };
             }
@@ -87,13 +88,17 @@ public sealed record AttachmentDto(long Id, string FileName, string ContentType,
 
 public sealed record CampaignDto(
     long Id, string Name, long? AccountId, long? ListId, string Subject, string Body, bool IsHtml, string Mode,
-    string Status, string? Note, bool UnsubscribeFooter, DateTimeOffset? ArchivedAt, DateTimeOffset? PurgesOn,
+    string Status, string? Note, bool UnsubscribeFooter, FilterDto? Filter, DateTimeOffset? ArchivedAt, DateTimeOffset? PurgesOn,
     Dictionary<string, int> Counts, List<AttachmentDto> Attachments);
 
 public sealed record PreviewDto(
-    string To, string Subject, string Body, bool IsHtml, long? ContactId, long? PreviousId, long? NextId, int Total,
+    string To, string Subject, string Body, bool IsHtml, long? ContactId, long? PreviousId, long? NextId, int Total, int Matching,
     List<string> UnknownFields, List<string> EmptyFields);
 
-public sealed record PlanDto(int Contacts, int Skipped, int ToDraft, int ToSend, int AlreadySent, int Failed, int Uncertain);
+public sealed record PlanDto(int Contacts, int Skipped, int FilteredOut, int ToDraft, int ToSend, int AlreadySent, int Failed, int Uncertain);
 
 public sealed record PlanResponseDto(PlanDto Plan, bool SupportsDrafts, string? Account, string? FromEmail);
+
+public sealed record FilterConditionDto(string Column, string Operator, string? Value);
+
+public sealed record FilterDto(string Match, List<FilterConditionDto> Conditions);

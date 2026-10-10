@@ -126,7 +126,7 @@ public sealed class CampaignEditingTests(MailMergeApiFactory api)
 
         var plan = await client.GetAsync<PlanResponseDto>($"/api/campaigns/{campaign.Id}/plan");
 
-        plan.Plan.Should().BeEquivalentTo(new PlanDto(4, 3, 1, 1, 0, 0, 0));
+        plan.Plan.Should().BeEquivalentTo(new PlanDto(4, 3, 0, 1, 1, 0, 0, 0));
         plan.Account.Should().BeNull();
     }
 

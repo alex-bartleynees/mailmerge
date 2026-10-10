@@ -27,4 +27,10 @@ public sealed class EmailColumnDetectorTests
     [Fact]
     public void Returns_empty_when_nothing_qualifies() =>
         EmailColumnDetector.Detect(Table(["Name", "Phone"], ["Ann", "021"])).Should().BeEmpty();
+
+    [Fact]
+    public void Send_email_flag_does_not_hide_addresses_under_an_arbitrary_header() =>
+        EmailColumnDetector.Detect(Table(["SEND_EMAIL", "Contact"],
+            ["TRUE", "ann@example.com"], ["FALSE", "bob@example.com"]))
+            .Should().Be("Contact");
 }

@@ -11,7 +11,7 @@ using SharedKernel.Results;
 
 namespace MailMerge.Api.Features.Campaigns.Preview;
 
-public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSettings> settings) : IHandler
+public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSettings> settings, DeliveryPlanner planner) : IHandler
 {
     public async Task<Result<PreviewCampaignResponse>> Handle(long campaignId, long? contactId, CancellationToken ct)
     {
@@ -21,10 +21,18 @@ public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSe
             return CampaignErrors.NotFound;
         }
 
-        var contacts = db.Contacts.AsNoTracking().Where(c => c.ListId == campaign.ListId);
-        Contact? contact = contactId is { } id
-            ? await contacts.SingleOrDefaultAsync(c => c.Id == id, ct)
-            : await contacts.OrderBy(c => c.Id).FirstOrDefaultAsync(ct);
+        if (await planner.FilterErrorAsync(campaign, ct) is { } filterError)
+        {
+            return filterError;
+        }
+
+        // Lists are small (hundreds to a few thousand), so filter in memory and page through the people the
+        // email's filter includes.
+        var all = campaign.ListId is null
+            ? []
+            : await db.Contacts.AsNoTracking().Where(c => c.ListId == campaign.ListId).OrderBy(c => c.Id).ToListAsync(ct);
+        var matching = campaign.Filter is { } filter ? all.Where(c => filter.Matches(c.MergeData())).ToList() : all;
+        var contact = contactId is { } id ? matching.FirstOrDefault(c => c.Id == id) : matching.FirstOrDefault();
 
         var data = contact?.MergeData() ?? new Dictionary<string, string>();
         var columns = campaign.ListId is null
@@ -51,11 +59,10 @@ public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSe
             body,
             campaign.IsHtml,
             contact?.Id,
-            contact is null ? null : await contacts.Where(c => c.Id < contact.Id).OrderByDescending(c => c.Id)
-                .Select(c => (long?)c.Id).FirstOrDefaultAsync(ct),
-            contact is null ? null : await contacts.Where(c => c.Id > contact.Id).OrderBy(c => c.Id)
-                .Select(c => (long?)c.Id).FirstOrDefaultAsync(ct),
-            campaign.ListId is null ? 0 : await contacts.CountAsync(ct),
+            contact is null ? null : matching.LastOrDefault(c => c.Id < contact.Id)?.Id,
+            contact is null ? null : matching.FirstOrDefault(c => c.Id > contact.Id)?.Id,
+            all.Count,
+            matching.Count,
             unknown,
             empty);
     }

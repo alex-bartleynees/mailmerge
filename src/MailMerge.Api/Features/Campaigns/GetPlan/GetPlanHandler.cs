@@ -20,6 +20,6 @@ public sealed class GetPlanHandler(MailMergeDbContext db, DeliveryPlanner planne
             ? await db.SendingAccounts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct)
             : null;
         return new GetPlanResponse(await planner.PlanAsync(campaign, ct), account?.SupportsDrafts ?? false,
-            account?.Name, account?.FromEmail);
+            account?.Name, account?.FromEmail, (await planner.FilterErrorAsync(campaign, ct))?.Detail);
     }
 }

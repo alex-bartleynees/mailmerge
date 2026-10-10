@@ -212,6 +212,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created");
 
+                    b.Property<string>("Filter")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("filter");
+
                     b.Property<bool>("IsHtml")
                         .HasColumnType("boolean")
                         .HasColumnName("is_html");

@@ -15,6 +15,11 @@ name, never anyone else's. Every email shows up in **Sent Items** like normal, a
    list and only new people are added.
 2. **Emails > New email:** pick the list, write the subject and message. Click a column name (like *First Name*)
    to put it in, so each person gets "Dear Sarah" instead of a generic hello. Add attachments if you like.
+   To email only some contacts, use **Recipient rules** below **Send to**. Add a condition, choose any imported
+   column, and choose **is yes / true** or another comparison. Choose **all (AND)** to require every condition
+   (e.g. RSVP and SEND_EMAIL both true), or **any (OR)** to require at least one. Use one condition to check a
+   single column. Nonmatching people are skipped automatically for this email; their Contacts checkboxes stay
+   unchanged. The editor shows how many are excluded and how many emails are ready to send.
 3. For special offers and newsletters, tick **Add an unsubscribe link at the bottom**.
 4. **Check it:** click **Preview** to see the email for a real customer, then **Send me a test** and look at it in
    your inbox.
@@ -24,6 +29,13 @@ name, never anyone else's. Every email shows up in **Sent Items** like normal, a
    - **Send:** sends them one by one, slowly (about 20 a minute). You can **Pause** any time and carry on later.
 
 ## Good to know
+- **Spreadsheet flags:** real Excel TRUE values and text such as yes, y, t, 1, x, ✓ and ✔ count as yes.
+  FALSE, blanks and other values count as not true. Comparisons ignore case and surrounding spaces.
+- **Updating from another spreadsheet:** when updating existing contacts, **Replace existing values with blank
+  cells** is checked by default. Keep it checked when a blank send flag means no; uncheck it to keep the old
+  value for blank cells. Columns absent from the file keep their existing values.
+- **Missing rule columns:** if you delete a referenced column or choose a list without it, fix or remove the
+  rule before sending. An unfinished rule cannot silently turn into sending to everyone.
 - **You can close the page.** Sending carries on by itself. If an email shows **Check**, it might or might not have
   gone out: look in Sent Items, then open **View log** and press *It was sent* or *Retry*.
 - **Someone asks to stop getting emails?** Add them under **Opt-outs & privacy**. They'll be skipped from then on,

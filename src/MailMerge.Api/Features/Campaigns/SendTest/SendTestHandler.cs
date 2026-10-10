@@ -8,11 +8,12 @@ using SharedKernel.Results;
 namespace MailMerge.Api.Features.Campaigns.SendTest;
 
 /// <summary>
-/// Sends one "[TEST]" copy to a staff member's own address, merged with the first contact's details, so they can
+/// Sends one "[TEST]" copy to a staff member's own address, merged with the first included contact's details, so they can
 /// see exactly what customers will get. Sent straight away; it doesn't touch the campaign's progress.
 /// </summary>
 public sealed class SendTestHandler(
     MailMergeDbContext db,
+    DeliveryPlanner planner,
     IMailSenderFactory senders,
     ILogger<SendTestHandler> log) : IHandler
 {
@@ -26,6 +27,11 @@ public sealed class SendTestHandler(
             return CampaignErrors.NotFound;
         }
 
+        if (await planner.FilterErrorAsync(campaign, ct) is { } filterError)
+        {
+            return filterError;
+        }
+
         var account = campaign.AccountId is { } accountId
             ? await db.SendingAccounts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == accountId, ct)
             : null;
@@ -35,8 +41,9 @@ public sealed class SendTestHandler(
         }
 
         var to = request.To.Trim();
-        var first = await db.Contacts.AsNoTracking().Where(c => c.ListId == campaign.ListId).OrderBy(c => c.Id)
-            .FirstOrDefaultAsync(ct);
+        var contacts = await db.Contacts.AsNoTracking().Where(c => c.ListId == campaign.ListId).OrderBy(c => c.Id)
+            .ToListAsync(ct);
+        var first = contacts.FirstOrDefault(c => campaign.Filter?.Matches(c.MergeData()) ?? true);
         var data = first?.MergeData() ?? new Dictionary<string, string> { ["Email"] = to };
 
         try

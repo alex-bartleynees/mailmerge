@@ -35,6 +35,18 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
             return CampaignErrors.ListNotFound;
         }
 
+        var effectiveFilter = request.Filter ?? campaign.Filter;
+        if (effectiveFilter is { IsEmpty: false } && (request.Filter is not null || request.ListId is not null))
+        {
+            var effectiveListId = request.ListId ?? campaign.ListId;
+            var columns = await db.ContactLists.Where(l => l.Id == effectiveListId)
+                .Select(l => l.Columns).SingleOrDefaultAsync(ct) ?? [];
+            if (effectiveFilter.ValidateColumns(columns) is { } filterError)
+            {
+                return filterError;
+            }
+        }
+
         if (request.Name is { } name)
         {
             campaign.Name = string.IsNullOrWhiteSpace(name) ? "New email" : name.Trim();
@@ -46,6 +58,12 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
         campaign.Body = request.Body ?? campaign.Body;
         campaign.IsHtml = request.IsHtml ?? campaign.IsHtml;
         campaign.UnsubscribeFooter = request.UnsubscribeFooter ?? campaign.UnsubscribeFooter;
+        if (request.Filter is { } filter)
+        {
+            campaign.Filter = filter.IsEmpty
+                ? null
+                : filter with { Conditions = filter.Conditions.Select(c => c with { Column = c.Column.Trim() }).ToList() };
+        }
         await db.SaveChangesAsync(ct);
 
         return (await CampaignDetails.LoadOneAsync(db, campaignId, ct))!;

@@ -71,11 +71,14 @@ Everything runs through the nix dev shell (`direnv allow`, or prefix commands wi
 
 ```sh
 dotnet test                                   # unit + integration (needs Docker for Testcontainers)
+npm ci --prefix tests/MailMerge.UiTests
+npm test --prefix tests/MailMerge.UiTests       # UI behavior with Node 24; no browser required
 dotnet ef migrations add <Name> -p src/MailMerge.Api -o Shared/Persistence/Migrations
 ```
 
 Integration tests use real Postgres and GreenMail (SMTP/IMAP) containers, WireMock for Graph, and a test
 auth handler that emits Keycloak-shaped claims.
+UI tests execute the actual page script in jsdom and exercise recipient rule controls and autosave.
 
 ### Run locally without Keycloak
 

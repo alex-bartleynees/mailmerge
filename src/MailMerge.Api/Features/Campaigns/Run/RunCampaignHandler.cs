@@ -49,6 +49,11 @@ public sealed class RunCampaignHandler(
             return error;
         }
 
+        if (await planner.FilterErrorAsync(campaign, ct) is { } filterError)
+        {
+            return filterError;
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await planner.MaterializeAsync(campaign, ct);
         campaign.Status = CampaignStatus.Running;

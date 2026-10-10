@@ -3,6 +3,7 @@ obj/
 .direnv/
 .env
 .idea/
+node_modules/
 *.DotSettings.user
 TestResults/
 data/

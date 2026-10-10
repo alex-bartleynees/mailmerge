@@ -43,6 +43,9 @@ public sealed class Campaign : IWorkspaceOwned
     /// <summary>Append an unsubscribe link to every message.</summary>
     public bool UnsubscribeFooter { get; set; }
 
+    /// <summary>Only contacts matching this are emailed; the rest are skipped. Null means everyone on the list.</summary>
+    public RecipientFilter? Filter { get; set; }
+
     public DateTimeOffset Created { get; set; }
 
     /// <summary>Last run/pause/send/mark. The retention clock starts here.</summary>
@@ -69,6 +72,7 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         b.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(c => c.Note).HasMaxLength(1000);
         b.Property(c => c.Summary).HasJsonConversion();
+        b.Property(c => c.Filter).HasJsonConversion();
         b.HasOne<SendingAccount>().WithMany().HasForeignKey(c => c.AccountId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne<ContactList>().WithMany().HasForeignKey(c => c.ListId).OnDelete(DeleteBehavior.SetNull);
     }

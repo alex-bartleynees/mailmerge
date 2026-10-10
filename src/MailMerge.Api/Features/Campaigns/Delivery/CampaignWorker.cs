@@ -167,7 +167,8 @@ public sealed class CampaignWorker(
     {
         var contact = message.ContactId is { } contactId
             ? await db.Contacts.IgnoreQueryFilters().AsNoTracking()
-                .SingleOrDefaultAsync(c => c.Id == contactId && c.WorkspaceId == campaign.WorkspaceId, ct)
+                .SingleOrDefaultAsync(c => c.Id == contactId && c.WorkspaceId == campaign.WorkspaceId
+                                          && c.ListId == campaign.ListId, ct)
             : null;
         if (contact is null)
         {
@@ -175,8 +176,14 @@ public sealed class CampaignWorker(
             return false;
         }
 
+        if (await services.GetRequiredService<DeliveryPlanner>().FilterErrorAsync(campaign, ct) is { } filterError)
+        {
+            await FinishAsync(db, campaign.Id, CampaignStatus.Paused, Trim(filterError.Detail), ct);
+            return false;
+        }
+
         var optedOut = await services.GetRequiredService<OptOutRegistry>().IsOptedOutAsync(campaign.WorkspaceId, contact.Email, ct);
-        if (DeliveryPlanner.SkipReason(contact, optedOut) is { } reason)
+        if (DeliveryPlanner.SkipReason(contact, optedOut, campaign.Filter) is { } reason)
         {
             await SetAsync(db, message.Id, MessageStatus.Skipped, reason, ct: ct);
             return false;

@@ -251,6 +251,7 @@ function drawGrid(){
     ${bad?`<span class="pill bad">${bad} invalid email${bad>1?'s':''}</span>`:''}${off?`<span class="pill warn">${off} won't be emailed</span>`:''}
     <input id="q" placeholder="Search…" value="${esc(CT.q)}" style="width:200px;margin-left:auto">
     <button class="btn" id="addCol">+ Column</button></div>
+   <p class="mute small">To send based on columns such as RSVP or SEND_EMAIL, open an email in <b>Emails</b> and set <b>Recipient rules</b> below its Send to list. People who don't match are skipped automatically for that email.</p>
    <div class="row" style="margin-bottom:10px"><input id="newEmail" placeholder="Add a person: email address" style="max-width:300px"><button class="btn primary" id="addRow">Add</button></div>
    <div class="gridwrap"><table><thead><tr><th>Don't email</th>${cols.map(c=>`<th>${esc(c)} ${c==='Email'?'':`<a href="#" data-del="${esc(c)}" title="Remove column" class="mute" style="text-decoration:none">✕</a>`}</th>`).join('')}<th></th></tr></thead>
    <tbody>${shown.map(c=>`<tr data-id="${c.id}" class="${c.doNotEmail||c.optedOut?'off':''}">
@@ -289,7 +290,10 @@ function showImport(pv){
     <div><label>Put these contacts in</label>
      <select id="target"><option value="new">A new list</option>${CT.lists.map(l=>`<option value="${l.id}" ${hasLists&&l.id===CT.cur?'selected':''}>Add to: ${esc(l.name)}</option>`).join('')}</select>
      <div id="newname"><label>New list name</label><input id="nn" value="${esc((pv.fileName||'Imported list').replace(/\.[^.]+$/,''))}"></div>
-     <label class="inline"><input type="checkbox" id="upd"> If someone is already in the list, update their details from this file</label></div></div>
+     <label class="inline"><input type="checkbox" id="upd"> If someone is already in the list, update their details from this file</label>
+     <div id="blankoption" hidden><label class="inline"><input type="checkbox" id="replaceblanks" checked> Replace existing values with blank cells from this file</label>
+      <p class="mute small">Keep this checked if a blank RSVP or send flag means no. Uncheck to preserve existing values where the file has blanks.</p></div></div></div>
+   <p class="mute small">All columns are imported. To choose who receives an email, set <b>Recipient rules</b> in Emails after importing.</p>
    ${pv.invalidCount?`<div class="note">${pv.invalidCount} row(s) in this column don't look like email addresses. They'll be imported so you can fix them, but won't be emailed until corrected.</div>`:''}
    ${pv.blankCount?`<div class="note">${pv.blankCount} row(s) have no email and will be skipped.</div>`:''}
    <h3>Preview</h3><div class="gridwrap" style="max-height:220px"><table><thead><tr>${pv.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
@@ -297,10 +301,11 @@ function showImport(pv){
    <div class="row" style="margin-top:16px"><button class="btn primary" id="go">Import</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
   const tgl=()=>$('#newname').style.display=$('#target').value==='new'?'':'none';
   $('#target').onchange=tgl;tgl();
+  $('#upd').onchange=()=>$('#blankoption').hidden=!$('#upd').checked;
   const s=$('#sheet');if(s)s.onchange=guard(async()=>showImport(await api('GET',`/api/imports/${pv.token}?sheet=${encodeURIComponent(s.value)}`)));
   $('#go').onclick=guard(async()=>{
     const t=$('#target').value;
-    const r=await api('POST',`/api/imports/${pv.token}/commit`,{sheet:pv.sheet,emailColumn:$('#emailcol').value,updateExisting:$('#upd').checked,listId:t==='new'?null:+t,newListName:$('#nn').value});
+    const r=await api('POST',`/api/imports/${pv.token}/commit`,{sheet:pv.sheet,emailColumn:$('#emailcol').value,updateExisting:$('#upd').checked,replaceBlankValues:$('#upd').checked&&$('#replaceblanks').checked,listId:t==='new'?null:+t,newListName:$('#nn').value});
     closeModal();CT.cur=r.listId;await viewContacts();
     toast(`Imported: ${r.added} added${r.updated?`, ${r.updated} updated`:''}${r.duplicates?`, ${r.duplicates} already there`:''}${r.noEmail?`, ${r.noEmail} without email skipped`:''}`)});
 }
@@ -355,6 +360,8 @@ async function findPerson(){
 
 /* ============================================================ EMAILS (campaigns) */
 let EM={cur:null};
+const FILTER_OPS={isYes:'is yes / true',isNo:'is no / not true',equals:'equals',notEquals:'does not equal',contains:'contains',isEmpty:'is blank',isNotEmpty:'is not blank'};
+const FILTER_NEEDS_VALUE=['equals','notEquals','contains'];
 function checklist(cs){
   const c=WS.checklist;
   const steps=[[c.accountConnected,'Connect your Outlook mailbox','accounts','Go to Accounts'],[c.hasContacts,'Upload your clients from Excel','contacts','Go to Contacts'],[cs.length>0,'Write your first email','emails',null]];
@@ -377,7 +384,7 @@ const statusPill=c=>c.archivedAt?'<span class="pill">Archived</span>':({running:
 
 async function editEmail(id){
   const [c,accts,lists]=await Promise.all([api('GET','/api/campaigns/'+id),api('GET','/api/accounts'),api('GET','/api/lists')]);
-  const list=lists.find(l=>l.id===c.listId), archived=!!c.archivedAt, locked=c.status==='running'||archived;
+  const list=lists.find(l=>l.id===c.listId)||lists[0], archived=!!c.archivedAt, locked=c.status==='running'||archived;
   const acct=accts.find(a=>a.id===c.accountId);
   $('#app').innerHTML=`
   <div class="row" style="margin-bottom:12px"><button class="btn" id="back">← All emails</button><h2 style="margin:0">${esc(c.name)}</h2>${statusPill(c)}<span id="saved" class="mute small"></span>
@@ -387,7 +394,8 @@ async function editEmail(id){
   ${purgeSoon(c)?`<div class="note">This email's send history will be cleared on <b>${fmtDate(c.purgesOn)}</b> (it's kept for ${WS.workspace.retentionDays} days). Download the log if you need a record.</div>`:''}
   <div class="card"><h2>1 · Who and from where</h2><div class="cols2">
    <div><label>Send from</label><select id="account" ${locked?'disabled':''}>${accts.map(a=>`<option value="${a.id}" ${a.id===c.accountId?'selected':''}>${esc(a.name)} ${a.fromEmail?'('+esc(a.fromEmail)+')':''}</option>`).join('')||'<option value="">No accounts. Add one in Accounts</option>'}</select></div>
-   <div><label>Send to</label><select id="list" ${locked?'disabled':''}>${lists.map(l=>`<option value="${l.id}" ${l.id===c.listId?'selected':''}>${esc(l.name)} (${l.count} people)</option>`).join('')||'<option value="">No lists. Upload one in Contacts</option>'}</select></div></div></div>
+   <div><label>Send to</label><select id="list" ${locked?'disabled':''}>${lists.map(l=>`<option value="${l.id}" ${l.id===c.listId?'selected':''}>${esc(l.name)} (${l.count} people)</option>`).join('')||'<option value="">No lists. Upload one in Contacts</option>'}</select></div></div>
+   <div id="filterbox"></div></div>
   <div class="card"><h2>2 · Write it</h2>
    <label>Subject</label><input id="subject" value="${esc(c.subject)}" placeholder="e.g. Hi {{FirstName|there}}, your update" ${locked?'disabled':''}>
    <div class="chips" id="chips"><span class="mute small" style="align-self:center">Insert a column:</span>${(list?.columns||[]).map(k=>`<button class="chip" data-f="${esc(k)}">${esc(k)}</button>`).join('')}</div>
@@ -411,10 +419,77 @@ async function editEmail(id){
   const showMode=()=>{plain.style.display=isHtml?'none':'';ed.style.display=isHtml?'':'none';tools.style.display=isHtml&&!locked?'flex':'none'};
   if(isHtml)ed.innerHTML=c.body;else plain.value=c.body;showMode();
   const getBody=()=>isHtml?ed.innerHTML:plain.value;
-  const fields=()=>({subject:$('#subject').value,body:getBody(),isHtml,unsubscribeFooter:$('#unsub').checked,accountId:+$('#account').value||null,listId:+$('#list').value||null});
-  const persist=async()=>{if(!locked)await api('PUT','/api/campaigns/'+id,fields())};
-  const save=debounce(guard(async()=>{await persist();$('#saved').textContent='Saved';refreshPlan()}),700);
-  const dirty=()=>{$('#saved').textContent='Saving…';save()};
+  // --- recipient filter ("only send to people where RSVP is yes …")
+  const F={match:c.filter?.match||'all',conditions:(c.filter?.conditions||[]).map(x=>({...x}))};
+  const filterCols=list?.columns||[];
+  const newCondition=()=>({column:filterCols.find(k=>k!=='Email')||filterCols[0],operator:'isYes',value:''});
+  let saving=false,serverFilterError=null,latestPlan=null;
+  const complete=x=>x.column&&(!FILTER_NEEDS_VALUE.includes(x.operator)||(x.value||'').trim());
+  const filterOut=()=>({match:F.match,conditions:F.conditions.map(x=>({...x}))});
+  const filterIssue=()=>{
+    if(F.conditions.length>10)return 'Use at most 10 recipient rules.';
+    if(F.conditions.some(x=>!complete(x)))return 'Complete each recipient rule before saving or sending.';
+    const missing=F.conditions.filter(x=>!filterCols.some(k=>k.toLowerCase()===x.column.toLowerCase())).map(x=>x.column);
+    return missing.length?`These columns aren't in this list: ${missing.join(', ')}. Choose another column or remove the rule.`:'';
+  };
+  function updateFilterState(){
+    const issue=filterIssue()||serverFilterError;
+    const err=$('#ferror');if(err){err.hidden=!issue;err.textContent=issue||''}
+    const blocked=locked||saving||!!issue;
+    const send=$('#send'),draft=$('#mkdraft');
+    if(send)send.disabled=blocked||!latestPlan?.plan.toSend;
+    if(draft)draft.disabled=blocked||!latestPlan?.supportsDrafts||!latestPlan?.plan.toDraft;
+    const test=$('#test');if(test)test.disabled=archived||saving||!!issue;
+    const count=$('#fcount');if(count&&latestPlan)count.textContent=issue?'Sending is blocked until the rules are fixed.':saving?'Saving recipient rules…':`${latestPlan.plan.filteredOut||0} of ${latestPlan.plan.contacts} contacts excluded by these rules; ${latestPlan.plan.toSend} emails ready to send.`;
+  }
+  function drawFilter(){
+    const box=$('#filterbox');
+    if(!F.conditions.length){
+      box.innerHTML=`<h3>Recipient rules</h3><p class="mute small">Everyone on the selected list is included, except people marked don't email, opted out, or with invalid addresses.</p>
+       ${locked?'':`<button class="btn" id="faddfirst" ${filterCols.length?'':'disabled'}>+ Only send to some people (e.g. RSVP is yes)</button>`}<div class="note bad" id="ferror" hidden></div>`;
+      const b=$('#faddfirst');if(b)b.onclick=()=>{F.conditions.push(newCondition());drawFilter();dirty()};
+      updateFilterState();
+      return;
+    }
+    box.innerHTML=`<h3>Recipient rules · Only send to people where
+      <select id="fmatch" aria-label="Match recipient rules" style="width:auto;display:inline-block" ${locked?'disabled':''}><option value="all">all (AND)</option><option value="any">any (OR)</option></select>
+      of these are true</h3>
+     ${F.conditions.map((x,i)=>`<div class="row" style="margin-bottom:6px" data-fi="${i}">
+       <select class="fcol" aria-label="Rule ${i+1} column" style="width:auto;min-width:160px" ${locked?'disabled':''}>${[...new Set([x.column,...filterCols])].filter(Boolean).map(k=>`<option ${k===x.column?'selected':''}>${esc(k)}</option>`).join('')}</select>
+       <select class="fop" aria-label="Rule ${i+1} comparison" style="width:auto" ${locked?'disabled':''}>${Object.entries(FILTER_OPS).map(([v,l])=>`<option value="${v}" ${v===x.operator?'selected':''}>${l}</option>`).join('')}</select>
+       <input class="fval" aria-label="Rule ${i+1} value" value="${esc(x.value||'')}" placeholder="value" style="max-width:200px;display:${FILTER_NEEDS_VALUE.includes(x.operator)?'':'none'}" ${locked?'disabled':''}>
+       ${locked?'':'<button class="btn danger fdel" title="Remove condition">✕</button>'}</div>`).join('')}
+     ${locked?'':`<div class="row"><button class="btn" id="fadd" ${F.conditions.length>=10||!filterCols.length?'disabled':''}>+ Add condition</button><a href="#" id="fclear" class="small">Send to everyone instead</a></div>`}
+     <p class="mute small">Yes includes TRUE, yes, y, t, 1, x, ✓ and ✔. Blank and other values count as not true. These rules apply to this email; contacts who don't match are skipped automatically.</p>
+     <div class="note bad" id="ferror" hidden></div>
+     <p class="mute small" id="fcount"></p>`;
+    $('#fmatch').value=F.match;
+    $('#fmatch').onchange=e=>{F.match=e.target.value;dirty()};
+    $$('[data-fi]').forEach(row=>{const x=F.conditions[+row.dataset.fi];
+      $('.fcol',row).onchange=e=>{x.column=e.target.value;dirty()};
+      $('.fop',row).onchange=e=>{x.operator=e.target.value;$('.fval',row).style.display=FILTER_NEEDS_VALUE.includes(x.operator)?'':'none';dirty()};
+      $('.fval',row).oninput=e=>{x.value=e.target.value;dirty()};
+      const del=$('.fdel',row);if(del)del.onclick=()=>{F.conditions.splice(+row.dataset.fi,1);drawFilter();dirty()};
+    });
+    const add=$('#fadd');if(add)add.onclick=()=>{if(F.conditions.length<10){F.conditions.push(newCondition());drawFilter();dirty()}};
+    const clr=$('#fclear');if(clr)clr.onclick=e=>{e.preventDefault();F.conditions=[];drawFilter();dirty()};
+    updateFilterState();
+  }
+  drawFilter();
+  const fields=()=>({subject:$('#subject').value,body:getBody(),isHtml,unsubscribeFooter:$('#unsub').checked,accountId:+$('#account').value||null,listId:+$('#list').value||null,filter:filterOut()});
+  let saves=Promise.resolve();
+  const persist=async()=>{
+    if(locked)return;
+    const issue=filterIssue();if(issue)throw new Error(issue);
+    const body=fields(),signature=JSON.stringify(body);
+    // A failed save is reported to its caller; the next edit can still retry the queue.
+    const request=saves.catch(()=>null).then(()=>api('PUT','/api/campaigns/'+id,body));saves=request;
+    try{await request}catch(e){if(signature===JSON.stringify(fields())){serverFilterError=e.message;$('#saved').textContent='Not saved';updateFilterState()}throw e}
+    if(signature===JSON.stringify(fields())){saving=false;serverFilterError=null;$('#saved').textContent='Saved'}
+    updateFilterState();
+  };
+  const save=debounce(guard(async()=>{await persist();await refreshPlan()}),700);
+  const dirty=()=>{saving=true;$('#saved').textContent=filterIssue()?'Rules incomplete':'Saving…';updateFilterState();if(!filterIssue())save()};
   $('#subject').oninput=dirty;plain.oninput=dirty;ed.oninput=dirty;$('#unsub').onchange=dirty;
   $('#account').onchange=guard(async()=>{await persist();editEmail(id)});
   $('#list').onchange=guard(async()=>{await persist();editEmail(id)});
@@ -438,9 +513,11 @@ async function editEmail(id){
   // --- run card
   async function refreshPlan(){
     const [cur,p]=await Promise.all([api('GET','/api/campaigns/'+id),api('GET',`/api/campaigns/${id}/plan`)]);
+    latestPlan=p;serverFilterError=p.filterError;
     const plan=p.plan,n=cur.counts,tot=n.total||0,seg=(k,col)=>tot?`<i style="width:${(n[k]||0)/tot*100}%;background:${col}"></i>`:'';
     const running=cur.status==='running';
     $('#runcard').innerHTML=`<h2>4 · Create drafts or send</h2>
+     ${p.filterError?`<div class="note bad">${esc(p.filterError)}</div>`:''}
      ${cur.note?`<div class="note bad">${esc(cur.note)}</div>`:''}
      ${tot?`<div class="row" style="margin-bottom:8px">${[['sent','Sent'],['drafted','Drafts'],['pending','Waiting'],['failed','Failed'],['uncertain','Check'],['skipped','Skipped']].map(([k,l])=>`<div class="stat"><b>${n[k]||0}</b>${l}</div>`).join('')}</div>
       <div class="bar-progress">${seg('sent','var(--ok)')}${seg('drafted','var(--brand)')}${seg('uncertain','var(--warn)')}${seg('failed','var(--bad)')}</div>`:''}
@@ -451,7 +528,7 @@ async function editEmail(id){
        <button class="btn primary" id="send" ${plan.toSend?'':'disabled'}>✉ Send ${plan.toSend||0} emails</button>`}
       ${n.failed?`<button class="btn" id="retry">Retry ${n.failed} failed</button>`:''}
       ${tot?`<a class="btn" href="/api/campaigns/${id}/log.csv">⬇ Download log</a><button class="btn" id="logbtn">View log</button>`:''}</div>
-     <p class="mute small">${plan.skipped?`${plan.skipped} contact(s) will be skipped (invalid, marked “don't email”, or opted out). `:''}${plan.alreadySent?`${plan.alreadySent} already sent. `:''}Drafts appear in the Drafts folder of <b>${esc(p.fromEmail||p.account||'the account')}</b> so you can read and edit them in Outlook; sending puts each email in <b>Sent</b>.</p>`}<div id="log"></div>`;
+     <p class="mute small">${plan.filteredOut?`${plan.filteredOut} contact(s) don't match this email's filter. `:''}${plan.skipped-plan.filteredOut?`${plan.skipped-plan.filteredOut} contact(s) will be skipped (invalid, marked “don't email”, or opted out). `:''}${plan.alreadySent?`${plan.alreadySent} already sent. `:''}Drafts appear in the Drafts folder of <b>${esc(p.fromEmail||p.account||'the account')}</b> so you can read and edit them in Outlook; sending puts each email in <b>Sent</b>.</p>`}<div id="log"></div>`;
     if(running){$('#pause').onclick=guard(async()=>{await api('POST',`/api/campaigns/${id}/pause`);editEmail(id)});if(!poller)poller=setInterval(()=>refreshPlan().catch(()=>0),2500)}
     else if(poller){clearInterval(poller);poller=null;if(cur.status==='done')toast('Finished');editEmail(id);return}
     const go=guard(async mode=>{await persist();
@@ -462,6 +539,7 @@ async function editEmail(id){
     if($('#send'))$('#send').onclick=()=>go('send');if($('#mkdraft'))$('#mkdraft').onclick=()=>go('draft');
     if($('#retry'))$('#retry').onclick=guard(async()=>{const r=await api('POST',`/api/campaigns/${id}/retry-failed`);toast(`${r.requeued} ready to try again. Press Send or Create drafts.`);refreshPlan()});
     if($('#logbtn'))$('#logbtn').onclick=guard(()=>showLog(id));
+    updateFilterState();
   }
   await refreshPlan();
 }

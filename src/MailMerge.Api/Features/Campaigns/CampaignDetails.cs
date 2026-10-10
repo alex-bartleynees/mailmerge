@@ -20,6 +20,7 @@ public sealed record CampaignDetails(
     CampaignStatus Status,
     string? Note,
     bool UnsubscribeFooter,
+    RecipientFilter? Filter,
     DateTimeOffset Created,
     DateTimeOffset LastActivityAt,
     DateTimeOffset? ArchivedAt,
@@ -52,7 +53,7 @@ public sealed record CampaignDetails(
 
         return rows.Select(c => new CampaignDetails(
                 c.Id, c.Name, c.AccountId, c.ListId, c.Subject, c.Body, c.IsHtml, c.Mode, c.Status, c.Note,
-                c.UnsubscribeFooter, c.Created, c.LastActivityAt, c.ArchivedAt,
+                c.UnsubscribeFooter, c.Filter, c.Created, c.LastActivityAt, c.ArchivedAt,
                 c.IsArchived || c.Status == CampaignStatus.Running || blocked.Contains(c.Id) ? null : c.LastActivityAt.AddDays(retentionDays),
                 c.Summary ?? StatusCounts(counts.Where(x => x.CampaignId == c.Id).Select(x => (x.Status, x.Count))),
                 attachments.Where(a => a.CampaignId == c.Id).Select(a => a.View).ToList()))
