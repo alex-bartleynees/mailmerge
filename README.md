@@ -68,6 +68,16 @@ Each operation folder holds `XRequest.cs` (record + FluentValidation validator),
   in Privacy settings, then enable the footer for an email or customise it there. Plain-text emails include text only.
 - SMTP passwords and Microsoft token caches are encrypted with ASP.NET Data Protection (keys in Postgres).
 
+### HTML safety
+
+- Contact values and fallbacks are HTML-encoded when merged into formatted emails, and subjects lose line breaks.
+- Formatted bodies and business footers are sanitised with an allowlist (`SafeHtml`, HtmlSanitizer) when saved:
+  formatting, links and images only, `http`/`https`/`mailto`/`tel` URLs, no scripts, event handlers, iframes or
+  forms. `{{Field}}` tags survive, including in link addresses. The UI cleans stored HTML again (`cleanHtml`)
+  before putting it into an editor, so markup saved before this check can't run either.
+- A merge field that starts a link or image address (`href="{{Website}}"`) must merge to an http(s)/mailto/tel URL;
+  a bare domain gets `https://`, anything else is dropped.
+
 ## Development
 
 Everything runs through the nix dev shell (`direnv allow`, or prefix commands with `nix develop -c`).

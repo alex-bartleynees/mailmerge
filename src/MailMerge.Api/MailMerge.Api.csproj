@@ -23,6 +23,7 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="ClosedXML" />
+    <PackageReference Include="HtmlSanitizer" />
     <PackageReference Include="Sep" />
     <PackageReference Include="Microsoft.Identity.Client" />
     <PackageReference Include="MailKit" />

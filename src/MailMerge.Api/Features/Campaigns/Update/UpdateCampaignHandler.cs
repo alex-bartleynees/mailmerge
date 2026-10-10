@@ -1,4 +1,5 @@
 using MailMerge.Api.Shared;
+using MailMerge.Api.Shared.Merging;
 using MailMerge.Api.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Results;
@@ -57,10 +58,15 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
         campaign.Subject = request.Subject ?? campaign.Subject;
         campaign.Body = request.Body ?? campaign.Body;
         campaign.IsHtml = request.IsHtml ?? campaign.IsHtml;
+        if (campaign.IsHtml && (request.Body is not null || request.IsHtml == true))
+        {
+            // Formatted HTML is shown back in the editor; only an allowlisted subset is ever stored.
+            campaign.Body = SafeHtml.Clean(campaign.Body);
+        }
         campaign.UnsubscribeFooter = request.UnsubscribeFooter ?? campaign.UnsubscribeFooter;
         campaign.IncludeBusinessFooter = request.IncludeBusinessFooter ?? campaign.IncludeBusinessFooter;
         campaign.UseWorkspaceBusinessFooter = request.UseWorkspaceBusinessFooter ?? campaign.UseWorkspaceBusinessFooter;
-        campaign.BusinessFooter = request.BusinessFooter ?? campaign.BusinessFooter;
+        campaign.BusinessFooter = request.BusinessFooter?.Sanitised() ?? campaign.BusinessFooter;
         if (request.UnsubscribeMessage is { } unsubscribeMessage)
         {
             campaign.UnsubscribeMessage = string.IsNullOrWhiteSpace(unsubscribeMessage) ? null : unsubscribeMessage.Trim();

@@ -76,6 +76,33 @@ code{background:var(--bg);padding:1px 5px;border-radius:4px}
 const $=(s,el=document)=>el.querySelector(s), $$=(s,el=document)=>[...el.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+/* Saved formatted HTML goes back into contenteditable editors on this origin, so it is cleaned before any innerHTML:
+   allowlisted tags and attributes only, no event handlers, only http(s)/mailto/tel (or relative / {{Field}}) links.
+   The server sanitises on save too; this also covers anything stored before that. DOMParser documents are inert
+   (no scripts run, no images load), so parsing untrusted markup here is safe. */
+const SAFE_TAGS=new Set('P DIV SPAN BR HR B STRONG I EM U S SMALL SUB SUP UL OL LI A IMG H1 H2 H3 H4 BLOCKQUOTE TABLE THEAD TBODY TR TH TD'.split(' '));
+const DROP_TAGS=new Set('SCRIPT STYLE IFRAME FRAME FRAMESET OBJECT EMBED FORM INPUT BUTTON TEXTAREA SELECT LINK META BASE SVG MATH TEMPLATE NOSCRIPT'.split(' '));
+const SAFE_ATTRS=new Set('href src alt title width height style align colspan rowspan target rel'.split(' '));
+function safeUrl(url){
+  const v=String(url??'').replace(/[\u0000- ]/g,'');
+  if(!v||v.startsWith('{{'))return true;
+  const scheme=/^([a-z][a-z0-9+.-]*):/i.exec(v);
+  return !scheme||['http','https','mailto','tel'].includes(scheme[1].toLowerCase());
+}
+function cleanHtml(html){
+  const doc=new DOMParser().parseFromString(`<body>${html??''}</body>`,'text/html');
+  const walk=el=>{for(const n of [...el.childNodes]){
+    if(n.nodeType===Node.TEXT_NODE)continue;
+    if(n.nodeType!==Node.ELEMENT_NODE||DROP_TAGS.has(n.tagName)){n.remove();continue}
+    walk(n);
+    if(!SAFE_TAGS.has(n.tagName)){n.replaceWith(...n.childNodes);continue}
+    for(const a of [...n.attributes]){const name=a.name.toLowerCase();
+      if(!SAFE_ATTRS.has(name)||((name==='href'||name==='src')&&!safeUrl(a.value))||(name==='style'&&/expression|url\s*\(|javascript:/i.test(a.value)))n.removeAttribute(a.name)}
+  }};
+  walk(doc.body);
+  return doc.body.innerHTML;
+}
+
 /* ---- BFF plumbing: the session is a cookie; state-changing calls need the CSRF header. */
 let csrf=null;
 async function csrfToken(){
@@ -322,7 +349,7 @@ function businessFooterEditor(id,footer,locked=false){
    <p class="mute small">Add any business details you want to include. A logo needs a publicly accessible image URL. Plain-text emails include the text without the logo.</p>`;
 }
 function wireBusinessFooter(id,footer,changed=()=>{}){
-  const editor=$('#'+id+'_html');editor.innerHTML=footer?.html||'';
+  const editor=$('#'+id+'_html');editor.innerHTML=cleanHtml(footer?.html);
   editor.oninput=changed;$('#'+id+'_logo').oninput=changed;
   const toolbar=$('#'+id+'_tools');if(toolbar)$$('[data-footer-cmd]',toolbar).forEach(b=>b.onmousedown=e=>{
     e.preventDefault();const cmd=b.dataset.footerCmd;
@@ -448,7 +475,7 @@ async function editEmail(id){
   const plain=$('#plain'),ed=$('#editor'),fmt=$('#fmt'),tools=$('#tools');
   let isHtml=c.isHtml; fmt.value=isHtml?'1':'0';
   const showMode=()=>{plain.style.display=isHtml?'none':'';ed.style.display=isHtml?'':'none';tools.style.display=isHtml&&!locked?'flex':'none'};
-  if(isHtml)ed.innerHTML=c.body;else plain.value=c.body;showMode();
+  if(isHtml)ed.innerHTML=cleanHtml(c.body);else plain.value=c.body;showMode();
   const getBody=()=>isHtml?ed.innerHTML:plain.value;
   // --- recipient filter
   const F={match:c.filter?.match||'all',conditions:(c.filter?.conditions||[]).map(x=>({...x}))};

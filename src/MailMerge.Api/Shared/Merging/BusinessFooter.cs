@@ -6,6 +6,9 @@ namespace MailMerge.Api.Shared.Merging;
 /// <summary>Optional business details in formatted text, with an optional hosted logo.</summary>
 public sealed record BusinessFooter(string Html, string? LogoUrl = null)
 {
+    /// <summary>The same footer with its HTML passed through <see cref="SafeHtml"/>. Apply before saving.</summary>
+    public BusinessFooter Sanitised() => this with { Html = SafeHtml.Clean(Html) };
+
     public string Render(bool asHtml)
     {
         var text = MergeTemplate.HtmlToText(Html);

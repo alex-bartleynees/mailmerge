@@ -49,3 +49,32 @@ public sealed class MergeTemplateTests
             .Should().Be("Hello Ann\nOne\nTwo\n\nBye");
     }
 }
+
+public sealed class MergeTemplateUrlTests
+{
+    private static string Link(string website) =>
+        MergeTemplate.Render("<a href=\"{{Website}}\">site</a>",
+            new Dictionary<string, string> { ["Website"] = website }, asHtml: true);
+
+    [Theory]
+    [InlineData("https://shop.co.nz/a?b=1", "https://shop.co.nz/a?b=1")]
+    [InlineData("mailto:sales@shop.co.nz", "mailto:sales@shop.co.nz")]
+    [InlineData("shop.co.nz/rings", "https://shop.co.nz/rings")]
+    [InlineData("javascript:alert(1)", "")]
+    [InlineData("data:text/html;base64,PHNjcmlwdD4=", "")]
+    [InlineData("not a url", "")]
+    public void A_field_starting_a_link_must_be_a_safe_url(string value, string expectedHref) =>
+        Link(value).Should().Be($"<a href=\"{System.Net.WebUtility.HtmlEncode(expectedHref)}\">site</a>");
+
+    [Fact]
+    public void A_field_later_in_the_address_cannot_change_the_scheme_and_is_left_as_is() =>
+        MergeTemplate.Render("<a href=\"https://shop.co.nz/?ref={{Id}}\">x</a>",
+                new Dictionary<string, string> { ["Id"] = "javascript:1" }, asHtml: true)
+            .Should().Be("<a href=\"https://shop.co.nz/?ref=javascript:1\">x</a>");
+
+    [Fact]
+    public void Text_outside_tags_is_unaffected() =>
+        MergeTemplate.Render("<p>Visit {{Website}}</p>",
+                new Dictionary<string, string> { ["Website"] = "javascript:alert(1)" }, asHtml: true)
+            .Should().Be("<p>Visit javascript:alert(1)</p>");
+}
