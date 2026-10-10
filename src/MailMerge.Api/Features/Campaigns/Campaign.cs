@@ -1,6 +1,7 @@
 using MailMerge.Api.Features.Accounts;
 using MailMerge.Api.Features.Lists;
 using MailMerge.Api.Shared.Persistence;
+using MailMerge.Api.Shared.Merging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -43,6 +44,13 @@ public sealed class Campaign : IWorkspaceOwned
     /// <summary>Append an unsubscribe link to every message.</summary>
     public bool UnsubscribeFooter { get; set; }
 
+    /// <summary>Plain text shown before the unsubscribe link. Null uses the default wording.</summary>
+    public string? UnsubscribeMessage { get; set; }
+
+    public bool IncludeBusinessFooter { get; set; }
+    public bool UseWorkspaceBusinessFooter { get; set; } = true;
+    public BusinessFooter? BusinessFooter { get; set; }
+
     /// <summary>Only contacts matching this are emailed; the rest are skipped. Null means everyone on the list.</summary>
     public RecipientFilter? Filter { get; set; }
 
@@ -71,8 +79,10 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         b.Property(c => c.Mode).HasConversion<string>().HasMaxLength(20);
         b.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
         b.Property(c => c.Note).HasMaxLength(1000);
+        b.Property(c => c.UnsubscribeMessage).HasMaxLength(1000);
         b.Property(c => c.Summary).HasJsonConversion();
         b.Property(c => c.Filter).HasJsonConversion();
+        b.Property(c => c.BusinessFooter).HasJsonConversion();
         b.HasOne<SendingAccount>().WithMany().HasForeignKey(c => c.AccountId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne<ContactList>().WithMany().HasForeignKey(c => c.ListId).OnDelete(DeleteBehavior.SetNull);
     }

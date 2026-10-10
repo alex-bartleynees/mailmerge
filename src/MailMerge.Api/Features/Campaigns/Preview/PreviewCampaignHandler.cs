@@ -47,11 +47,11 @@ public sealed class PreviewCampaignHandler(MailMergeDbContext db, IOptions<AppSe
             .Order().ToList();
 
         var subject = MergeTemplate.Render(campaign.Subject, data, asHtml: false);
-        var body = MergeTemplate.Render(campaign.Body, data, campaign.IsHtml);
-        if (campaign.UnsubscribeFooter)
-        {
-            body += MessageBuilder.Footer($"{settings.Value.PublicBaseUrl.TrimEnd('/')}{UnsubscribeLinks.PublicPath}/preview", campaign.IsHtml);
-        }
+        var workspaceFooter = campaign.IncludeBusinessFooter && campaign.UseWorkspaceBusinessFooter
+            ? await db.Workspaces.Where(w => w.Id == campaign.WorkspaceId).Select(w => w.BusinessFooter).SingleAsync(ct)
+            : null;
+        var body = MessageBuilder.Body(campaign, data, workspaceFooter,
+            $"{settings.Value.PublicBaseUrl.TrimEnd('/')}{UnsubscribeLinks.PublicPath}/preview");
 
         return new PreviewCampaignResponse(
             data.GetValueOrDefault("Email", ""),

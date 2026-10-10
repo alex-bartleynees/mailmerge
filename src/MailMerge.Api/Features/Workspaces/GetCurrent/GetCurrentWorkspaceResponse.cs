@@ -1,3 +1,5 @@
+using MailMerge.Api.Shared.Merging;
+
 namespace MailMerge.Api.Features.Workspaces.GetCurrent;
 
 public sealed record GetCurrentWorkspaceResponse(
@@ -7,7 +9,7 @@ public sealed record GetCurrentWorkspaceResponse(
 {
     public sealed record UserView(string Subject, string? Email, string? Name);
 
-    public sealed record WorkspaceView(long Id, string Name, int RetentionDays);
+    public sealed record WorkspaceView(long Id, string Name, int RetentionDays, BusinessFooter? BusinessFooter = null);
 
     /// <summary>Drives the "Getting started" steps in the UI.</summary>
     public sealed record ChecklistView(bool HasAccount, bool AccountConnected, bool HasContacts, bool HasCampaign);

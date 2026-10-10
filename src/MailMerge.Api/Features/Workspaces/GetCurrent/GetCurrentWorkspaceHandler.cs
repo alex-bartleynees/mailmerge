@@ -10,9 +10,9 @@ public sealed class GetCurrentWorkspaceHandler(MailMergeDbContext db, CurrentUse
 {
     public async Task<GetCurrentWorkspaceResponse> Handle(CancellationToken ct)
     {
-        var retentionDays = await db.Workspaces.AsNoTracking()
+        var workspace = await db.Workspaces.AsNoTracking()
             .Where(w => w.Id == user.WorkspaceId)
-            .Select(w => w.RetentionDays)
+            .Select(w => new { w.RetentionDays, w.BusinessFooter })
             .SingleAsync(ct);
 
         var hasAccount = await db.SendingAccounts.AnyAsync(ct);
@@ -23,7 +23,7 @@ public sealed class GetCurrentWorkspaceHandler(MailMergeDbContext db, CurrentUse
 
         return new GetCurrentWorkspaceResponse(
             new(user.Subject, user.Email, user.Name),
-            new(user.WorkspaceId, user.WorkspaceName, retentionDays),
+            new(user.WorkspaceId, user.WorkspaceName, workspace.RetentionDays, workspace.BusinessFooter),
             new(hasAccount, accountConnected, await db.Contacts.AnyAsync(ct), await db.Campaigns.AnyAsync(ct)));
     }
 }

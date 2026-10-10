@@ -26,6 +26,7 @@ label.inline{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:
 input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
 input[type=checkbox]{width:auto}
 textarea{min-height:90px;resize:vertical}
+.footer-editor{min-height:90px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 button.btn,a.btn{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-block}
 button.btn:hover,a.btn:hover{border-color:var(--brand)}
 button.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
@@ -251,7 +252,7 @@ function drawGrid(){
     ${bad?`<span class="pill bad">${bad} invalid email${bad>1?'s':''}</span>`:''}${off?`<span class="pill warn">${off} won't be emailed</span>`:''}
     <input id="q" placeholder="Search…" value="${esc(CT.q)}" style="width:200px;margin-left:auto">
     <button class="btn" id="addCol">+ Column</button></div>
-   <p class="mute small">To send based on columns such as RSVP or SEND_EMAIL, open an email in <b>Emails</b> and set <b>Recipient rules</b> below its Send to list. People who don't match are skipped automatically for that email.</p>
+   <p class="mute small">To select recipients using values in your imported columns, open an email in <b>Emails</b> and set <b>Recipient rules</b> below its Send to list. People who don't match are skipped automatically for that email.</p>
    <div class="row" style="margin-bottom:10px"><input id="newEmail" placeholder="Add a person: email address" style="max-width:300px"><button class="btn primary" id="addRow">Add</button></div>
    <div class="gridwrap"><table><thead><tr><th>Don't email</th>${cols.map(c=>`<th>${esc(c)} ${c==='Email'?'':`<a href="#" data-del="${esc(c)}" title="Remove column" class="mute" style="text-decoration:none">✕</a>`}</th>`).join('')}<th></th></tr></thead>
    <tbody>${shown.map(c=>`<tr data-id="${c.id}" class="${c.doNotEmail||c.optedOut?'off':''}">
@@ -292,8 +293,10 @@ function showImport(pv){
      <div id="newname"><label>New list name</label><input id="nn" value="${esc((pv.fileName||'Imported list').replace(/\.[^.]+$/,''))}"></div>
      <label class="inline"><input type="checkbox" id="upd"> If someone is already in the list, update their details from this file</label>
      <div id="blankoption" hidden><label class="inline"><input type="checkbox" id="replaceblanks" checked> Replace existing values with blank cells from this file</label>
-      <p class="mute small">Keep this checked if a blank RSVP or send flag means no. Uncheck to preserve existing values where the file has blanks.</p></div></div></div>
+      <p class="mute small">Keep this checked if blank cells should clear existing values. Uncheck to preserve existing values where the file has blanks.</p></div></div></div>
    <p class="mute small">All columns are imported. To choose who receives an email, set <b>Recipient rules</b> in Emails after importing.</p>
+   <p class="mute small">For commercial emails, make sure you have recipient consent for the message you plan to send. Recipient rules select who receives an email; they don't establish consent.
+    <a href="https://www.dia.govt.nz/Spam-Three-Steps" target="_blank" rel="noopener noreferrer">NZ anti-spam guidance</a></p>
    ${pv.invalidCount?`<div class="note">${pv.invalidCount} row(s) in this column don't look like email addresses. They'll be imported so you can fix them, but won't be emailed until corrected.</div>`:''}
    ${pv.blankCount?`<div class="note">${pv.blankCount} row(s) have no email and will be skipped.</div>`:''}
    <h3>Preview</h3><div class="gridwrap" style="max-height:220px"><table><thead><tr>${pv.headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
@@ -311,6 +314,23 @@ function showImport(pv){
 }
 
 /* ============================================================ OPT-OUTS & PRIVACY */
+function businessFooterEditor(id,footer,locked=false){
+  return `<label for="${id}_html">Business name and contact details</label>
+   ${locked?'':`<div class="tools" id="${id}_tools"><button class="btn" data-footer-cmd="bold"><b>B</b></button><button class="btn" data-footer-cmd="italic"><i>I</i></button><button class="btn" data-footer-cmd="createLink">Link</button><button class="btn" data-footer-cmd="removeFormat">Clear formatting</button></div>`}
+   <div class="footer-editor" id="${id}_html" role="textbox" aria-label="Business name and contact details" contenteditable="${!locked}"></div>
+   <label for="${id}_logo">Logo image URL (optional)</label><input id="${id}_logo" type="url" placeholder="https://your-website.com/logo.png" value="${esc(footer?.logoUrl||'')}" ${locked?'disabled':''}>
+   <p class="mute small">Add any business details you want to include. A logo needs a publicly accessible image URL. Plain-text emails include the text without the logo.</p>`;
+}
+function wireBusinessFooter(id,footer,changed=()=>{}){
+  const editor=$('#'+id+'_html');editor.innerHTML=footer?.html||'';
+  editor.oninput=changed;$('#'+id+'_logo').oninput=changed;
+  const toolbar=$('#'+id+'_tools');if(toolbar)$$('[data-footer-cmd]',toolbar).forEach(b=>b.onmousedown=e=>{
+    e.preventDefault();const cmd=b.dataset.footerCmd;
+    if(cmd==='createLink'){const url=prompt('Link address (https://…)');if(url)document.execCommand(cmd,false,url)}else document.execCommand(cmd);
+    changed();
+  });
+}
+const businessFooterValue=id=>({html:$('#'+id+'_html').innerHTML,logoUrl:$('#'+id+'_logo').value.trim()});
 async function viewPrivacy(){
   const [rows,log]=await Promise.all([api('GET','/api/opt-outs'),api('GET','/api/privacy/log')]);
   const src={manual:'added by you',link:'unsubscribe link',erasure:'removed for privacy'};
@@ -327,6 +347,8 @@ async function viewPrivacy(){
     <div><label>Shop name (shown on the unsubscribe page)</label><input id="ws_name" value="${esc(WS.workspace.name)}"></div>
     <div><label>Keep each email's send history for (days)</label><input id="ws_days" type="number" min="7" max="3650" value="${WS.workspace.retentionDays}"></div></div>
     <p class="mute small">After this many days without activity, an email's per-person history and attachments are deleted. The email itself stays, with its totals, and can be copied to send again.</p>
+    <h3>Default business footer (optional)</h3><p class="mute small">Save reusable business details here. Each email must have its business footer switched on to include them.</p>
+    ${businessFooterEditor('ws_footer',WS.workspace.businessFooter)}
     <button class="btn" id="ws_save">Save settings</button></div>
    <div class="card"><h2>Privacy log</h2>${log.length?`<table><tbody>${log.map(l=>`<tr><td class="pad small">${fmtDate(l.performedAt)}</td><td class="pad">${l.action==='erase'?'Person removed':'Old history cleared'}</td><td class="pad small mute">${Object.entries(l.counts).map(([k,v])=>`${v} ${k}`).join(', ')}</td><td class="pad small mute">${esc(l.performedBy)}</td></tr>`).join('')}</tbody></table>`:'<p class="mute small">Nothing yet.</p>'}</div>`;
   $('#add').onclick=guard(async()=>{const r=await api('POST','/api/opt-outs',{emails:$('#em').value,reason:$('#why').value});toast(`${r.added} added${r.alreadyOptedOut?`, ${r.alreadyOptedOut} already there`:''}${r.ignored.length?`. Not email addresses: ${r.ignored.join(', ')}`:''}`,r.ignored.length>0);viewPrivacy()});
@@ -334,7 +356,8 @@ async function viewPrivacy(){
   wireRemove();
   $('#find').oninput=debounce(guard(async e=>{const v=e.target.value.trim();const r=v.includes('@')?await api('GET','/api/opt-outs?email='+encodeURIComponent(v)):rows.filter(o=>(o.email||'').includes(v.toLowerCase()));$('#oo').innerHTML=optRows(r,src);wireRemove()}),300);
   $('#look').onclick=guard(findPerson);$('#who_em').onkeydown=e=>e.key==='Enter'&&findPerson();
-  $('#ws_save').onclick=guard(async()=>{WS=await api('PUT','/api/workspace',{name:$('#ws_name').value,retentionDays:+$('#ws_days').value});toast('Saved');start()});
+  wireBusinessFooter('ws_footer',WS.workspace.businessFooter);
+  $('#ws_save').onclick=guard(async()=>{WS=await api('PUT','/api/workspace',{name:$('#ws_name').value,retentionDays:+$('#ws_days').value,businessFooter:businessFooterValue('ws_footer')});toast('Saved');start()});
 }
 const optRows=(rows,src)=>rows.map(r=>`<tr><td class="pad">${r.email?esc(r.email):'<span class="mute">(address removed for privacy)</span>'}</td><td class="pad mute small">${fmtDate(r.added)} · ${src[r.source]||r.source}${r.reason?` · ${esc(r.reason)}`:''}</td><td class="pad"><button class="btn" data-o="${esc(r.id)}">Remove</button></td></tr>`).join('');
 async function findPerson(){
@@ -400,13 +423,21 @@ async function editEmail(id){
    <label>Subject</label><input id="subject" value="${esc(c.subject)}" placeholder="e.g. Hi {{FirstName|there}}, your update" ${locked?'disabled':''}>
    <div class="chips" id="chips"><span class="mute small" style="align-self:center">Insert a column:</span>${(list?.columns||[]).map(k=>`<button class="chip" data-f="${esc(k)}">${esc(k)}</button>`).join('')}</div>
    <div class="row"><label style="margin:10px 0 3px">Message</label>
-    <select id="fmt" style="width:auto;margin-left:auto" ${locked?'disabled':''}><option value="0">Plain text</option><option value="1">Formatted (bold, links, lists)</option></select></div>
+    <select id="fmt" style="width:auto;margin-left:auto" ${locked?'disabled':''}><option value="1">Formatted (bold, links, lists)</option><option value="0">Plain text</option></select></div>
    <div class="bodybox"><div id="tools" class="tools" style="display:none">
      <button class="btn" data-cmd="bold"><b>B</b></button><button class="btn" data-cmd="italic"><i>I</i></button><button class="btn" data-cmd="underline"><u>U</u></button>
      <button class="btn" data-cmd="insertUnorderedList">• List</button><button class="btn" data-cmd="createLink">Link</button><button class="btn" data-cmd="removeFormat">Clear</button></div>
     <textarea id="plain" ${locked?'disabled':''}></textarea><div id="editor" contenteditable="${!locked}" style="display:none"></div></div>
    <p class="mute small">Tip: <code>{{FirstName}}</code> is replaced for each person. <code>{{FirstName|there}}</code> uses “there” if the cell is empty. Outlook's saved signature isn't added automatically, so type or paste yours at the bottom.</p>
-   <label class="inline"><input type="checkbox" id="unsub" ${c.unsubscribeFooter?'checked':''} ${locked?'disabled':''}> Add an unsubscribe link at the bottom (needed for promotional emails)</label>
+   <label class="inline"><input type="checkbox" id="businessFooter" ${c.includeBusinessFooter?'checked':''} ${locked?'disabled':''}> Add a business footer (optional)</label>
+   <div id="businessFooterOptions" ${c.includeBusinessFooter?'':'hidden'}>
+    <label for="businessFooterSource">Business footer</label><select id="businessFooterSource" ${locked?'disabled':''}><option value="workspace">Use workspace default</option><option value="custom">Customise for this email</option></select>
+    <p class="mute small" id="businessFooterDefault">Manage the workspace default in <b>Privacy → Settings</b>. Use Preview to check the complete email.</p>
+    <div id="businessFooterCustom" ${c.useWorkspaceBusinessFooter!==false?'hidden':''}>${businessFooterEditor('email_footer',c.businessFooter??WS.workspace.businessFooter,locked)}</div></div>
+   <label class="inline"><input type="checkbox" id="unsub" ${c.unsubscribeFooter?'checked':''} ${locked?'disabled':''}> Add an unsubscribe link at the bottom (commercial emails need a working unsubscribe option)</label>
+   <div id="unsubOptions" ${c.unsubscribeFooter?'':'hidden'}><label for="unsubMessage">Unsubscribe message</label>
+    <textarea id="unsubMessage" rows="2" maxlength="1000" placeholder="Don't want these emails?" ${locked?'disabled':''}>${esc(c.unsubscribeMessage||'')}</textarea>
+    <p class="mute small">Plain text shown before the unsubscribe link. Leave blank to use the default message. The link is added automatically.</p></div>
    <h3>Attachments</h3><div id="atts">${c.attachments.map(a=>`<div class="row small"><span>📎 ${esc(a.fileName)} <span class="mute">(${fmtSize(a.size)})</span>${a.available?'':' <span class="pill">cleared</span>'}</span>${locked?'':`<button class="btn danger" data-att="${a.id}">Remove</button>`}</div>`).join('')||'<span class="mute small">None. Attachments go to every recipient.</span>'}</div>
    ${locked?'':'<div style="margin-top:8px"><button class="btn" id="addAtt">+ Attach a file</button></div>'}</div>
   <div class="card"><h2>3 · Check it</h2><div class="row"><button class="btn" id="prev">👁 Preview with real contact details</button>
@@ -419,7 +450,7 @@ async function editEmail(id){
   const showMode=()=>{plain.style.display=isHtml?'none':'';ed.style.display=isHtml?'':'none';tools.style.display=isHtml&&!locked?'flex':'none'};
   if(isHtml)ed.innerHTML=c.body;else plain.value=c.body;showMode();
   const getBody=()=>isHtml?ed.innerHTML:plain.value;
-  // --- recipient filter ("only send to people where RSVP is yes …")
+  // --- recipient filter
   const F={match:c.filter?.match||'all',conditions:(c.filter?.conditions||[]).map(x=>({...x}))};
   const filterCols=list?.columns||[];
   const newCondition=()=>({column:filterCols.find(k=>k!=='Email')||filterCols[0],operator:'isYes',value:''});
@@ -446,7 +477,7 @@ async function editEmail(id){
     const box=$('#filterbox');
     if(!F.conditions.length){
       box.innerHTML=`<h3>Recipient rules</h3><p class="mute small">Everyone on the selected list is included, except people marked don't email, opted out, or with invalid addresses.</p>
-       ${locked?'':`<button class="btn" id="faddfirst" ${filterCols.length?'':'disabled'}>+ Only send to some people (e.g. RSVP is yes)</button>`}<div class="note bad" id="ferror" hidden></div>`;
+       ${locked?'':`<button class="btn" id="faddfirst" ${filterCols.length?'':'disabled'}>+ Select recipients using column values</button>`}<div class="note bad" id="ferror" hidden></div>`;
       const b=$('#faddfirst');if(b)b.onclick=()=>{F.conditions.push(newCondition());drawFilter();dirty()};
       updateFilterState();
       return;
@@ -476,7 +507,7 @@ async function editEmail(id){
     updateFilterState();
   }
   drawFilter();
-  const fields=()=>({subject:$('#subject').value,body:getBody(),isHtml,unsubscribeFooter:$('#unsub').checked,accountId:+$('#account').value||null,listId:+$('#list').value||null,filter:filterOut()});
+  const fields=()=>({subject:$('#subject').value,body:getBody(),isHtml,unsubscribeFooter:$('#unsub').checked,unsubscribeMessage:$('#unsubMessage').value,includeBusinessFooter:$('#businessFooter').checked,useWorkspaceBusinessFooter:$('#businessFooterSource').value==='workspace',businessFooter:businessFooterValue('email_footer'),accountId:+$('#account').value||null,listId:+$('#list').value||null,filter:filterOut()});
   let saves=Promise.resolve();
   const persist=async()=>{
     if(locked)return;
@@ -490,7 +521,16 @@ async function editEmail(id){
   };
   const save=debounce(guard(async()=>{await persist();await refreshPlan()}),700);
   const dirty=()=>{saving=true;$('#saved').textContent=filterIssue()?'Rules incomplete':'Saving…';updateFilterState();if(!filterIssue())save()};
-  $('#subject').oninput=dirty;plain.oninput=dirty;ed.oninput=dirty;$('#unsub').onchange=dirty;
+  $('#subject').oninput=dirty;plain.oninput=dirty;ed.oninput=dirty;$('#unsubMessage').oninput=dirty;
+  $('#unsub').onchange=()=>{$('#unsubOptions').hidden=!$('#unsub').checked;dirty()};
+  const showFooter=()=>{
+    $('#businessFooterOptions').hidden=!$('#businessFooter').checked;
+    $('#businessFooterCustom').hidden=$('#businessFooterSource').value==='workspace';
+    $('#businessFooterDefault').hidden=$('#businessFooterSource').value!=='workspace';
+  };
+  $('#businessFooterSource').value=c.useWorkspaceBusinessFooter===false?'custom':'workspace';showFooter();
+  $('#businessFooter').onchange=()=>{showFooter();dirty()};$('#businessFooterSource').onchange=()=>{showFooter();dirty()};
+  wireBusinessFooter('email_footer',c.businessFooter??WS.workspace.businessFooter,dirty);
   $('#account').onchange=guard(async()=>{await persist();editEmail(id)});
   $('#list').onchange=guard(async()=>{await persist();editEmail(id)});
   fmt.onchange=()=>{const want=fmt.value==='1';if(want===isHtml)return;
@@ -517,6 +557,9 @@ async function editEmail(id){
     const plan=p.plan,n=cur.counts,tot=n.total||0,seg=(k,col)=>tot?`<i style="width:${(n[k]||0)/tot*100}%;background:${col}"></i>`:'';
     const running=cur.status==='running';
     $('#runcard').innerHTML=`<h2>4 · Create drafts or send</h2>
+     ${archived?'':`<div class="note small">Before sending commercial email, check recipient consent and include your business name, contact details and a working unsubscribe option. Honour unsubscribe requests within five working days. Sending slowly or sending fewer emails doesn't replace these requirements.
+      ${cur.unsubscribeFooter?'':'<br><b>The automatic unsubscribe link is off.</b> Enable it above or provide another working unsubscribe option.'}
+      <a href="https://www.dia.govt.nz/Spam-Three-Steps" target="_blank" rel="noopener noreferrer">NZ anti-spam guidance</a></div>`}
      ${p.filterError?`<div class="note bad">${esc(p.filterError)}</div>`:''}
      ${cur.note?`<div class="note bad">${esc(cur.note)}</div>`:''}
      ${tot?`<div class="row" style="margin-bottom:8px">${[['sent','Sent'],['drafted','Drafts'],['pending','Waiting'],['failed','Failed'],['uncertain','Check'],['skipped','Skipped']].map(([k,l])=>`<div class="stat"><b>${n[k]||0}</b>${l}</div>`).join('')}</div>

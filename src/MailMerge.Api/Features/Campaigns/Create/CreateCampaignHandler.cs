@@ -15,6 +15,7 @@ public sealed class CreateCampaignHandler(MailMergeDbContext db, CurrentUser use
         {
             WorkspaceId = user.WorkspaceId,
             Name = string.IsNullOrWhiteSpace(request.Name) ? "New email" : request.Name.Trim(),
+            IsHtml = true,
             AccountId = await db.SendingAccounts.OrderBy(a => a.Id).Select(a => (long?)a.Id).FirstOrDefaultAsync(ct),
             ListId = await db.ContactLists.OrderByDescending(l => l.Id).Select(l => (long?)l.Id).FirstOrDefaultAsync(ct),
             Created = now,

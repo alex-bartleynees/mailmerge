@@ -58,6 +58,13 @@ public sealed class UpdateCampaignHandler(MailMergeDbContext db) : IHandler
         campaign.Body = request.Body ?? campaign.Body;
         campaign.IsHtml = request.IsHtml ?? campaign.IsHtml;
         campaign.UnsubscribeFooter = request.UnsubscribeFooter ?? campaign.UnsubscribeFooter;
+        campaign.IncludeBusinessFooter = request.IncludeBusinessFooter ?? campaign.IncludeBusinessFooter;
+        campaign.UseWorkspaceBusinessFooter = request.UseWorkspaceBusinessFooter ?? campaign.UseWorkspaceBusinessFooter;
+        campaign.BusinessFooter = request.BusinessFooter ?? campaign.BusinessFooter;
+        if (request.UnsubscribeMessage is { } unsubscribeMessage)
+        {
+            campaign.UnsubscribeMessage = string.IsNullOrWhiteSpace(unsubscribeMessage) ? null : unsubscribeMessage.Trim();
+        }
         if (request.Filter is { } filter)
         {
             campaign.Filter = filter.IsEmpty

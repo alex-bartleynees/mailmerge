@@ -63,6 +63,9 @@ Each operation folder holds `XRequest.cs` (record + FluentValidation validator),
 - Retention (default 90 days) archives idle campaigns: per-recipient rows and attachment bytes are deleted and
   summary counts are kept.
 - Unsubscribe links (`/u/{token}`) are Data Protection tokens: a confirmation page, plus RFC 8058 one-click.
+  Each email can customise the plain-text message before its unsubscribe link; blank uses the default wording.
+- Business footers are optional and off by default. Save reusable formatted details and an optional hosted logo
+  in Privacy settings, then enable the footer for an email or customise it there. Plain-text emails include text only.
 - SMTP passwords and Microsoft token caches are encrypted with ASP.NET Data Protection (keys in Postgres).
 
 ## Development

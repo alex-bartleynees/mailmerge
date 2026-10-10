@@ -193,9 +193,13 @@ public sealed class CampaignWorker(
         var draftId = message.ProviderId;
         try
         {
+            var workspaceFooter = campaign.IncludeBusinessFooter && campaign.UseWorkspaceBusinessFooter
+                ? await db.Workspaces.Where(w => w.Id == campaign.WorkspaceId).Select(w => w.BusinessFooter).SingleAsync(ct)
+                : null;
             var outgoing = MessageBuilder.Build(campaign, contact.MergeData(), message.Email,
                 await AttachmentsAsync(db, campaign, ct),
-                campaign.UnsubscribeFooter ? unsubscribeLinks.Create(campaign.WorkspaceId, campaign.Id, message.Email) : null);
+                campaign.UnsubscribeFooter ? unsubscribeLinks.Create(campaign.WorkspaceId, campaign.Id, message.Email) : null,
+                workspaceFooter: workspaceFooter);
             var sender = senders.Create(account);
 
             if (sender.SupportsDrafts)

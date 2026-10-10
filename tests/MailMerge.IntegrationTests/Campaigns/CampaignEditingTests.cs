@@ -23,6 +23,7 @@ public sealed class CampaignEditingTests(MailMergeApiFactory api)
         campaign.ListId.Should().Be(newest.Id);
         campaign.Status.Should().Be("idle");
         campaign.Mode.Should().Be("draft");
+        campaign.IsHtml.Should().BeTrue();
     }
 
     [Fact]
@@ -73,6 +74,45 @@ public sealed class CampaignEditingTests(MailMergeApiFactory api)
         var preview = await client.GetAsync<PreviewDto>($"/api/campaigns/{campaign.Id}/preview");
 
         preview.Body.Should().StartWith("Hi").And.Contain("Unsubscribe here: https://mailmerge.test/");
+    }
+
+    [Fact]
+    public async Task Custom_unsubscribe_message_is_persisted_previewed_copied_and_reset()
+    {
+        var client = api.CreateStaffClient();
+        await CreateListAsync(client, Person("ann@example.com", "Ann"));
+        var campaign = await CreateCampaignAsync(client, "Hello", "<p>Hi</p>", isHtml: true);
+        const string message = "No more updates from A&B?\n<script>Leave</script>";
+        await client.PutAsync<CampaignDto>($"/api/campaigns/{campaign.Id}",
+            new { unsubscribeFooter = true, unsubscribeMessage = message });
+
+        (await client.GetAsync<CampaignDto>($"/api/campaigns/{campaign.Id}")).UnsubscribeMessage.Should().Be(message);
+        var preview = await client.GetAsync<PreviewDto>($"/api/campaigns/{campaign.Id}/preview");
+        preview.Body.Should().Contain("A&amp;B?<br>&lt;script&gt;Leave&lt;/script&gt;")
+            .And.Contain("href=\"https://mailmerge.test/u/preview\">Unsubscribe</a>");
+        var copy = await (await client.PostAsync($"/api/campaigns/{campaign.Id}/copy", null)).ReadAsync<CampaignDto>();
+        copy.UnsubscribeMessage.Should().Be(message);
+        copy.UnsubscribeFooter.Should().BeTrue();
+
+        // An omitted field preserves the wording; an explicit blank resets it.
+        var updated = await client.PutAsync<CampaignDto>($"/api/campaigns/{campaign.Id}", new { subject = "New subject" });
+        updated.UnsubscribeMessage.Should().Be(message);
+        var reset = await client.PutAsync<CampaignDto>($"/api/campaigns/{campaign.Id}", new { unsubscribeMessage = "  " });
+        reset.UnsubscribeMessage.Should().BeNull();
+        var defaultPreview = await client.GetAsync<PreviewDto>($"/api/campaigns/{campaign.Id}/preview");
+        WebUtility.HtmlDecode(defaultPreview.Body).Should().Contain("Don't want these emails?");
+    }
+
+    [Fact]
+    public async Task Unsubscribe_message_length_is_validated_without_changing_saved_content()
+    {
+        var client = api.CreateStaffClient();
+        var campaign = await CreateCampaignAsync(client, "Hello", "Hi");
+        var response = await client.PutAsJsonAsync($"/api/campaigns/{campaign.Id}",
+            new { unsubscribeMessage = new string('x', 1001), subject = "Changed" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await client.GetAsync<CampaignDto>($"/api/campaigns/{campaign.Id}")).Subject.Should().Be("Hello");
     }
 
     [Fact]

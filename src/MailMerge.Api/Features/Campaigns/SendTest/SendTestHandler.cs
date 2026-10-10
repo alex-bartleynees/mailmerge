@@ -45,11 +45,14 @@ public sealed class SendTestHandler(
             .ToListAsync(ct);
         var first = contacts.FirstOrDefault(c => campaign.Filter?.Matches(c.MergeData()) ?? true);
         var data = first?.MergeData() ?? new Dictionary<string, string> { ["Email"] = to };
+        var workspaceFooter = campaign.IncludeBusinessFooter && campaign.UseWorkspaceBusinessFooter
+            ? await db.Workspaces.Where(w => w.Id == campaign.WorkspaceId).Select(w => w.BusinessFooter).SingleAsync(ct)
+            : null;
 
         try
         {
             var message = MessageBuilder.Build(campaign, data, to, await CampaignAttachments.LoadAsync(db, campaign, ct),
-                unsubscribeUrl: null, MessageBuilder.TestSubjectPrefix);
+                unsubscribeUrl: null, MessageBuilder.TestSubjectPrefix, workspaceFooter);
             await senders.Create(account).SendNowAsync(message, ct);
         }
         catch (Exception e) when (e is AccountProblemException or MessageRejectedException or DeliveryUncertainException

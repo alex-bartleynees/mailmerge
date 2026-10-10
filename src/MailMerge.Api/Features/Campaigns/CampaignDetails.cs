@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MailMerge.Api.Shared.Merging;
 using MailMerge.Api.Shared.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,11 @@ public sealed record CampaignDetails(
     DateTimeOffset? ArchivedAt,
     DateTimeOffset? PurgesOn,
     IReadOnlyDictionary<string, int> Counts,
-    IReadOnlyList<AttachmentView> Attachments)
+    IReadOnlyList<AttachmentView> Attachments,
+    string? UnsubscribeMessage = null,
+    bool IncludeBusinessFooter = false,
+    bool UseWorkspaceBusinessFooter = true,
+    BusinessFooter? BusinessFooter = null)
 {
     public static async Task<IReadOnlyList<CampaignDetails>> LoadAsync(
         MailMergeDbContext db, IQueryable<Campaign> campaigns, CancellationToken ct)
@@ -56,7 +61,8 @@ public sealed record CampaignDetails(
                 c.UnsubscribeFooter, c.Filter, c.Created, c.LastActivityAt, c.ArchivedAt,
                 c.IsArchived || c.Status == CampaignStatus.Running || blocked.Contains(c.Id) ? null : c.LastActivityAt.AddDays(retentionDays),
                 c.Summary ?? StatusCounts(counts.Where(x => x.CampaignId == c.Id).Select(x => (x.Status, x.Count))),
-                attachments.Where(a => a.CampaignId == c.Id).Select(a => a.View).ToList()))
+                attachments.Where(a => a.CampaignId == c.Id).Select(a => a.View).ToList(), c.UnsubscribeMessage,
+                c.IncludeBusinessFooter, c.UseWorkspaceBusinessFooter, c.BusinessFooter))
             .ToList();
     }
 

@@ -99,3 +99,68 @@ test('import makes replacing blank flags an explicit choice', async t => {
   assert.equal($('#replaceblanks').checked, true);
   assert.match($('#box').textContent, /Recipient rules/);
 });
+
+test('unsubscribe wording autosaves, resets and survives toggling the footer', async t => {
+  const {w, $, writes} = await editor(t, {unsubscribeFooter: true, unsubscribeMessage: 'No more updates?'});
+  assert.equal($('#unsubOptions').hidden, false);
+  assert.equal($('#unsubMessage').value, 'No more updates?');
+  $('#unsubMessage').value = 'Stop receiving our news below.';
+  $('#unsubMessage').oninput(); await w.flushSave();
+  assert.equal(writes.at(-1).unsubscribeMessage, 'Stop receiving our news below.');
+  $('#unsub').checked = false; $('#unsub').onchange(); await w.flushSave();
+  assert.equal($('#unsubOptions').hidden, true);
+  assert.equal(writes.at(-1).unsubscribeFooter, false);
+  $('#unsub').checked = true; $('#unsub').onchange(); await w.flushSave();
+  assert.equal($('#unsubMessage').value, 'Stop receiving our news below.');
+  $('#unsubMessage').value = ''; $('#unsubMessage').oninput(); await w.flushSave();
+  assert.equal(writes.at(-1).unsubscribeMessage, '');
+});
+
+test('business footer starts off and supports a saved custom version independently of unsubscribe', async t => {
+  const {w, $, writes} = await editor(t, {unsubscribeFooter: true});
+  assert.equal($('#businessFooter').checked, false);
+  assert.equal($('#businessFooterOptions').hidden, true);
+  $('#businessFooter').checked = true; $('#businessFooter').onchange(); await w.flushSave();
+  assert.equal($('#businessFooterOptions').hidden, false);
+  assert.equal(writes.at(-1).useWorkspaceBusinessFooter, true);
+  $('#businessFooterSource').value = 'custom'; $('#businessFooterSource').onchange();
+  assert.equal($('#businessFooterCustom').hidden, false);
+  $('#email_footer_html').innerHTML = '<b>My business</b><br>hello@example.com'; $('#email_footer_html').oninput();
+  $('#email_footer_logo').value = 'https://example.com/logo.png'; $('#email_footer_logo').oninput();
+  await w.flushSave();
+  assert.deepEqual(writes.at(-1).businessFooter, {html: '<b>My business</b><br>hello@example.com', logoUrl: 'https://example.com/logo.png'});
+  assert.equal(writes.at(-1).useWorkspaceBusinessFooter, false);
+  $('#businessFooter').checked = false; $('#businessFooter').onchange(); await w.flushSave();
+  assert.equal(writes.at(-1).includeBusinessFooter, false);
+  assert.equal(writes.at(-1).unsubscribeFooter, true);
+  $('#businessFooter').checked = true; $('#businessFooter').onchange();
+  assert.equal($('#email_footer_html').innerHTML, '<b>My business</b><br>hello@example.com');
+});
+
+test('locked emails show saved business footers without editable controls', async t => {
+  const {$} = await editor(t, {status: 'running', includeBusinessFooter: true, useWorkspaceBusinessFooter: false,
+    businessFooter: {html: '<b>Business</b>', logoUrl: 'https://example.com/logo.png'}});
+  assert.equal($('#businessFooter').disabled, true);
+  assert.equal($('#email_footer_html').getAttribute('contenteditable'), 'false');
+  assert.equal($('#email_footer_html').innerHTML, '<b>Business</b>');
+  assert.equal($('#email_footer_logo').disabled, true);
+});
+
+test('workspace business footer can be saved and cleared without enabling any email', async t => {
+  const {w, $} = await editor(t);
+  const writes = [];
+  w.api = async (method, url, body) => {
+    if (method === 'PUT') {writes.push(structuredClone(body)); return {workspace: {name: body.name, retentionDays: body.retentionDays, businessFooter: body.businessFooter}};}
+    return [];
+  };
+  w.start = async () => {};
+  await w.viewPrivacy();
+  $('#ws_name').value = 'Business';
+  $('#ws_footer_html').innerHTML = '<b>Business</b><br>Phone: 123';
+  await $('#ws_save').onclick();
+  assert.equal(writes.at(-1).businessFooter.html, '<b>Business</b><br>Phone: 123');
+  assert.equal(Object.hasOwn(writes.at(-1), 'includeBusinessFooter'), false);
+  $('#ws_footer_html').innerHTML = ''; $('#ws_footer_logo').value = '';
+  await $('#ws_save').onclick();
+  assert.deepEqual(writes.at(-1).businessFooter, {html: '', logoUrl: ''});
+});

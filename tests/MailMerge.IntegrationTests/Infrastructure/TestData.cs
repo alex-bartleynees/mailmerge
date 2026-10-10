@@ -89,7 +89,10 @@ public sealed record AttachmentDto(long Id, string FileName, string ContentType,
 public sealed record CampaignDto(
     long Id, string Name, long? AccountId, long? ListId, string Subject, string Body, bool IsHtml, string Mode,
     string Status, string? Note, bool UnsubscribeFooter, FilterDto? Filter, DateTimeOffset? ArchivedAt, DateTimeOffset? PurgesOn,
-    Dictionary<string, int> Counts, List<AttachmentDto> Attachments);
+    Dictionary<string, int> Counts, List<AttachmentDto> Attachments, string? UnsubscribeMessage = null,
+    bool IncludeBusinessFooter = false, bool UseWorkspaceBusinessFooter = true, BusinessFooterDto? BusinessFooter = null);
+
+public sealed record BusinessFooterDto(string Html, string? LogoUrl);
 
 public sealed record PreviewDto(
     string To, string Subject, string Body, bool IsHtml, long? ContactId, long? PreviousId, long? NextId, int Total, int Matching,

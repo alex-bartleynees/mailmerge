@@ -1,4 +1,5 @@
 using FluentValidation;
+using MailMerge.Api.Shared.Merging;
 
 namespace MailMerge.Api.Features.Campaigns.Update;
 
@@ -13,7 +14,11 @@ public sealed record UpdateCampaignRequest(
     string? Body,
     bool? IsHtml,
     bool? UnsubscribeFooter,
-    RecipientFilter? Filter);
+    RecipientFilter? Filter,
+    string? UnsubscribeMessage = null,
+    bool? IncludeBusinessFooter = null,
+    bool? UseWorkspaceBusinessFooter = null,
+    BusinessFooter? BusinessFooter = null);
 
 internal sealed class UpdateCampaignRequestValidator : AbstractValidator<UpdateCampaignRequest>
 {
@@ -22,6 +27,8 @@ internal sealed class UpdateCampaignRequestValidator : AbstractValidator<UpdateC
         RuleFor(r => r.Name).MaximumLength(200);
         RuleFor(r => r.Subject).MaximumLength(998).WithMessage("The subject is too long");
         RuleFor(r => r.Body).MaximumLength(2_000_000).WithMessage("The message is too long");
+        RuleFor(r => r.UnsubscribeMessage).MaximumLength(1000).WithMessage("The unsubscribe message is too long");
+        RuleFor(r => r.BusinessFooter!).SetValidator(new BusinessFooterValidator()).When(r => r.BusinessFooter is not null);
         RuleFor(r => r.Filter!.Match).IsInEnum().When(r => r.Filter is not null);
         RuleFor(r => r.Filter!.Conditions)
             .Cascade(CascadeMode.Stop)

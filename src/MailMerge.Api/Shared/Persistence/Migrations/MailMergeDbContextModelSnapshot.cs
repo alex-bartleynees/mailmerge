@@ -208,6 +208,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("body");
 
+                    b.Property<string>("BusinessFooter")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("business_footer");
+
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created");
@@ -215,6 +219,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                     b.Property<string>("Filter")
                         .HasColumnType("jsonb")
                         .HasColumnName("filter");
+
+                    b.Property<bool>("IncludeBusinessFooter")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_business_footer");
 
                     b.Property<bool>("IsHtml")
                         .HasColumnType("boolean")
@@ -264,6 +272,15 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                     b.Property<bool>("UnsubscribeFooter")
                         .HasColumnType("boolean")
                         .HasColumnName("unsubscribe_footer");
+
+                    b.Property<string>("UnsubscribeMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("unsubscribe_message");
+
+                    b.Property<bool>("UseWorkspaceBusinessFooter")
+                        .HasColumnType("boolean")
+                        .HasColumnName("use_workspace_business_footer");
 
                     b.Property<long>("WorkspaceId")
                         .HasColumnType("bigint")
@@ -555,6 +572,10 @@ namespace MailMerge.Api.Shared.Persistence.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BusinessFooter")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("business_footer");
 
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("timestamp with time zone")

@@ -21,6 +21,7 @@ internal sealed class UpdateWorkspaceHandler(
         }
 
         workspace.RetentionDays = request.RetentionDays ?? workspace.RetentionDays;
+        workspace.BusinessFooter = request.BusinessFooter ?? workspace.BusinessFooter;
         await db.SaveChangesAsync(ct);
 
         directory.Forget(user.WorkspaceGroup);
