@@ -106,6 +106,11 @@ dotnet ef migrations add <Name> -p src/MailMerge.Api -o Shared/Persistence/Migra
 Integration tests use real Postgres and GreenMail (SMTP/IMAP) containers, WireMock for Graph, and a test
 auth handler that emits Keycloak-shaped claims.
 UI tests execute the actual page script in jsdom and exercise recipient rule controls and autosave.
+Architecture tests in the unit suite inspect compiled dependencies: other features' handlers, endpoints and
+HTTP request/response types are off limits, while cross-feature models and services use an explicit type allowlist.
+Shared code is independent of features except for the database context's entity models and workspace authentication.
+Feature implementation dependencies must be acyclic; model/contract references are excluded from that cycle check.
+When introducing a deliberate cross-feature contract, update `tests/MailMerge.UnitTests/Architecture/FeatureBoundaryTests.cs`.
 
 Health probes: `/health` checks database connectivity with a five-second timeout and returns 503 when
 unavailable. Helm uses it for readiness. `/liveness` checks application responsiveness without querying
