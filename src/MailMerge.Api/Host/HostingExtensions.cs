@@ -6,6 +6,7 @@ using MailMerge.Api.Shared.Auth;
 using MailMerge.Api.Shared.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -60,7 +61,8 @@ public static class HostingExtensions
             o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
         services.AddProblemDetails();
         services.AddOpenApi();
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<DatabaseHealthCheck>("database", timeout: TimeSpan.FromSeconds(5));
 
         return builder;
     }
@@ -91,7 +93,9 @@ public static class HostingExtensions
             app.MapOpenApi();
         }
 
-        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/health").AllowAnonymous();
+        // Dependency outages remove the pod from service without triggering restart loops.
+        app.MapHealthChecks("/liveness", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
         MapEndpointDefinitions(app);
         return app;
     }

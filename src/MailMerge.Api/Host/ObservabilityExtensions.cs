@@ -31,7 +31,8 @@ internal static class ObservabilityExtensions
                 .AddAttributes([new("deployment.environment", builder.Environment.EnvironmentName)]))
             .WithTracing(tracing => tracing
                 .AddSource(AppTelemetry.SourceName)
-                .AddAspNetCoreInstrumentation(o => o.Filter = ctx => !ctx.Request.Path.StartsWithSegments("/health"))
+                .AddAspNetCoreInstrumentation(o => o.Filter = ctx =>
+                    !ctx.Request.Path.StartsWithSegments("/health") && !ctx.Request.Path.StartsWithSegments("/liveness"))
                 .AddHttpClientInstrumentation()
                 .AddNpgsql())
             .WithMetrics(metrics => metrics

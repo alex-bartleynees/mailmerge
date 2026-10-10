@@ -30,6 +30,9 @@ public sealed class MailMergeApiFactory : WebApplicationFactory<Program>, IAsync
         _ = Services;
     }
 
+    /// <summary>Simulates a real database outage; only use with an isolated factory.</summary>
+    public Task StopDatabaseAsync() => _postgres.StopAsync();
+
     public new async Task DisposeAsync()
     {
         await base.DisposeAsync();

@@ -80,6 +80,10 @@ Integration tests use real Postgres and GreenMail (SMTP/IMAP) containers, WireMo
 auth handler that emits Keycloak-shaped claims.
 UI tests execute the actual page script in jsdom and exercise recipient rule controls and autosave.
 
+Health probes: `/health` checks database connectivity with a five-second timeout and returns 503 when
+unavailable. Helm uses it for readiness. `/liveness` checks application responsiveness without querying
+dependencies and is used for liveness, so a database outage doesn't cause repeated pod restarts.
+
 ### Run locally without Keycloak
 
 Development sign-in treats every request as one staff member. It only works in the Development environment with
